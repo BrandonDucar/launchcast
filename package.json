@@ -1,0 +1,36 @@
+{
+  "name": "oneshot-video",
+  "version": "1.0.0",
+  "description": "Autonomous Repo-to-Broadcast Launch Video Engine powered by Google Workspace & FFmpeg Compiler",
+  "type": "module",
+  "main": "src/index.mjs",
+  "bin": {
+    "oneshot": "./cli.mjs",
+    "oneshot-video": "./cli.mjs"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "cli": "node cli.mjs",
+    "demo": "node scripts/demo_compile.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "keywords": [
+    "video-generation",
+    "repo-to-video",
+    "launch-video",
+    "google-workspace",
+    "google-slides",
+    "ffmpeg",
+    "remotion",
+    "autonomous-agent"
+  ],
+  "author": "Brandon Ducar & OneShot Team",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0"
+  },
+  "devDependencies": {}
+}

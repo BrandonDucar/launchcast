@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OneShot Video — Autonomous Repo-to-Broadcast Launch Video Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="studio-layout">
+    <!-- Header -->
+    <header class="studio-header">
+      <div class="brand-group">
+        <div class="brand-logo">🎬</div>
+        <div>
+          <div class="brand-title">ONESHOT VIDEO <span class="badge-pro">PRO 2.0</span></div>
+          <div class="brand-sub">Autonomous Repo-to-Broadcast Engine • Google Workspace + FFmpeg IR Compiler</div>
+        </div>
+      </div>
+      <div class="header-status">
+        <span class="status-indicator">● READY</span>
+        <span class="engine-badge">V8 / FFmpeg 60fps Native</span>
+      </div>
+    </header>
+
+    <!-- Ingestion Hero -->
+    <section class="ingestion-card">
+      <div class="section-title">1. Multi-Source Ingestion & Analysis</div>
+      <div class="input-grid">
+        <div class="input-field">
+          <label>GitHub Repo URL or Local Path</label>
+          <input type="text" id="input-repo-path" value="c:\Users\brand\dreamnetopi-hackday" placeholder="https://github.com/user/repo or c:\path\to\repo">
+        </div>
+        <div class="input-field">
+          <label>Google Doc PRD / Launch Brief (Optional)</label>
+          <input type="text" id="input-doc-id" placeholder="Google Doc ID or link (e.g. 1BxiMVs0XRA5nFMdKvBdB...)">
+        </div>
+      </div>
+      <div class="ingestion-actions">
+        <button class="btn btn-primary" id="btn-scan-compile">
+          <span>⚡</span> Scan Codebase & Compile Storyboard
+        </button>
+        <button class="btn btn-outline" id="btn-export-slides">
+          <span>🖼️</span> Export to Google Slides Storyboard
+        </button>
+      </div>
+    </section>
+
+    <!-- Storyboard Canvas -->
+    <section class="storyboard-section" id="storyboard-section">
+      <div class="section-header-row">
+        <div>
+          <h2 class="section-title" id="storyboard-title">2. 4-Beat Broadcast Storyboard (30 Seconds)</h2>
+          <p class="section-sub" id="storyboard-pacing">Pacing: 2.4 words/second • Strict 4-beat kinetic formula • Zero fluff</p>
+        </div>
+        <div class="format-toggle">
+          <button class="toggle-btn active" data-format="vertical">📱 9:16 Vertical (Shorts/TikTok)</button>
+          <button class="toggle-btn" data-format="landscape">🖥️ 16:9 Landscape (YouTube/X)</button>
+        </div>
+      </div>
+
+      <!-- 4 Beats Grid -->
+      <div class="beats-grid" id="beats-grid">
+        <!-- Beat 1: Hook -->
+        <div class="beat-card" data-beat="0">
+          <div class="beat-header">
+            <span class="beat-pill">BEAT 1 • 0s - 6s</span>
+            <span class="beat-name">The Agony / Friction</span>
+          </div>
+          <div class="beat-body">
+            <label>Headline Overlay</label>
+            <input type="text" class="beat-headline" value="THE STATUS QUO IS BROKEN">
+            <label>Voiceover Script (Max 15 words)</label>
+            <textarea class="beat-script">Building and launching modern software is fast—until you have to explain it to the world.</textarea>
+            <div class="beat-meta">
+              <span>Directive: RAPID_CUT_CHAOS</span>
+              <span class="word-counter">14 words</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Beat 2: Mechanism -->
+        <div class="beat-card" data-beat="1">
+          <div class="beat-header">
+            <span class="beat-pill">BEAT 2 • 6s - 14s</span>
+            <span class="beat-name">The Solution Mechanism</span>
+          </div>
+          <div class="beat-body">
+            <label>Headline Overlay</label>
+            <input type="text" class="beat-headline" value="MEET DREAMNETIOPI">
+            <label>Voiceover Script (Max 20 words)</label>
+            <textarea class="beat-script">Tell Dreamnet what happened, and it coordinates your business response across inventory, storefronts, and social.</textarea>
+            <div class="beat-meta">
+              <span>Directive: SMOOTH_ZOOM_UI_HUD</span>
+              <span class="word-counter">16 words</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Beat 3: Proof -->
+        <div class="beat-card" data-beat="2">
+          <div class="beat-header">
+            <span class="beat-pill">BEAT 3 • 14s - 22s</span>
+            <span class="beat-name">Technical Proof in Action</span>
+          </div>
+          <div class="beat-body">
+            <label>Headline Overlay</label>
+            <input type="text" class="beat-headline" value="AUTONOMOUS DESK CONSENSUS">
+            <label>Voiceover Script (Max 20 words)</label>
+            <textarea class="beat-script">@offer-desk recalculates margin safety, @campaign-desk stages 5 social drafts, and one tap approves the live pivot.</textarea>
+            <div class="beat-meta">
+              <span>Directive: TERMINAL_EXECUTION_PULSE</span>
+              <span class="word-counter">18 words</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Beat 4: Climax -->
+        <div class="beat-card" data-beat="3">
+          <div class="beat-header">
+            <span class="beat-pill">BEAT 4 • 22s - 30s</span>
+            <span class="beat-name">Compounding Climax & CTA</span>
+          </div>
+          <div class="beat-body">
+            <label>Headline Overlay</label>
+            <input type="text" class="beat-headline" value="AVAILABLE ON GITHUB TODAY">
+            <label>Voiceover Script (Max 18 words)</label>
+            <textarea class="beat-script">Backed by cryptographic ProofStack receipts, every crisis compiles into zero-token playbooks for tomorrow. Star the repo now!</textarea>
+            <div class="beat-meta">
+              <span>Directive: KINETIC_CTA_BADGE</span>
+              <span class="word-counter">17 words</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Render Action Bar -->
+      <div class="render-action-bar">
+        <div>
+          <button class="btn btn-render" id="btn-render-video">
+            <span>🎬</span> Compile & Render 30s Launch MP4
+          </button>
+        </div>
+        <div class="render-meta-note">
+          ⚡ Synthesizes audio + 60fps dynamic zoompan + kinetic subtitle burns in ~8 seconds via local FFmpeg.
+        </div>
+      </div>
+    </section>
+
+    <!-- Video Output Stage -->
+    <section class="output-section" id="output-section" style="display: none;">
+      <div class="section-title">3. Master Broadcast Video Output</div>
+      <div class="output-grid">
+        <div class="video-player-container">
+          <video id="master-video-player" controls autoplay loop playsinline>
+            <source src="" type="video/mp4">
+            Your browser does not support HTML5 video.
+          </video>
+        </div>
+        <div class="output-details-card">
+          <h3 id="output-video-name">launch_reel_vertical.mp4</h3>
+          <div class="output-stat-row">
+            <div class="stat-box"><span class="stat-val" id="out-stat-res">1080x1920</span><span class="stat-lbl">Resolution</span></div>
+            <div class="stat-box"><span class="stat-val" id="out-stat-dur">30.0s</span><span class="stat-lbl">Duration</span></div>
+            <div class="stat-box"><span class="stat-val" id="out-stat-size">2.4 MB</span><span class="stat-lbl">File Size</span></div>
+          </div>
+          <div class="distribution-box">
+            <h4>🌐 Autonomous Distribution Pipes</h4>
+            <ul class="dist-list">
+              <li><strong>Google Drive:</strong> Saved to team folder for instant sharing</li>
+              <li><strong>YouTube Shorts:</strong> Ready for 1-click scheduled release</li>
+              <li><strong>GitHub README:</strong> Markdown badge generated for Pull Request</li>
+            </ul>
+          </div>
+          <div class="output-actions">
+            <a href="#" download id="btn-download-video" class="btn btn-primary" style="text-decoration:none; text-align:center;">
+              📥 Download 1080p MP4
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="toast-container" id="toast-container"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

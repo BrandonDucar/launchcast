@@ -1,0 +1,8 @@
+node_modules/
+.oneshot_cache/
+.env
+output/*.wav
+output/*.txt
+output/*merged*
+output/*seg*
+.DS_Store
