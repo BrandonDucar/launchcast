@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { runOneShotVideo, RepoScanner, ScriptCompiler } from "./src/index.mjs";
+import { runLaunchCast, RepoScanner, ScriptCompiler } from "./src/index.mjs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 
@@ -8,13 +8,13 @@ const command = args[0];
 
 function printHelp() {
   console.log(`
-🎬 OneShot Video CLI — Autonomous Repo-to-Broadcast Video Engine
+🎬 LaunchCast CLI — Autonomous Repo-to-Broadcast Video Engine
 
 Usage:
-  oneshot <target> [options]
-  oneshot scan <target>
-  oneshot compile <target>
-  oneshot ui
+  launchcast <target> [options]
+  launchcast scan <target>
+  launchcast compile <target>
+  launchcast ui
 
 Commands:
   <target>          Local path or GitHub URL to scan and compile into video
@@ -44,7 +44,7 @@ async function main() {
   }
 
   if (command === "ui") {
-    console.log("🌐 Starting OneShot Video Web Studio...");
+    console.log("🌐 Starting LaunchCast Web Studio...");
     const serverProcess = spawn("node", ["server.mjs"], { stdio: "inherit" });
     return;
   }
@@ -75,10 +75,10 @@ async function main() {
   const farcaster = args.includes("--farcaster");
   const channelId = args.find(a => a.startsWith("--channel="))?.split("=")[1] || "dev";
 
-  await runOneShotVideo(target, { format, exportSlides, publish, farcaster, channelId });
+  await runLaunchCast(target, { format, exportSlides, publish, farcaster, channelId });
 }
 
 main().catch(err => {
-  console.error("❌ [OneShot CLI Error]:", err.message);
+  console.error("❌ [LaunchCast CLI Error]:", err.message);
   process.exit(1);
 });

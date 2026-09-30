@@ -17,10 +17,10 @@ export {
 };
 
 /**
- * End-to-end runner that executes the entire OneShot Video pipeline.
+ * End-to-end runner that executes the entire LaunchCast pipeline.
  */
-export async function runOneShotVideo(targetPathOrUrl, options = {}) {
-  console.log(`\n🚀 [OneShot Video Engine] Starting compilation for: ${targetPathOrUrl}`);
+export async function runLaunchCast(targetPathOrUrl, options = {}) {
+  console.log(`\n🚀 [LaunchCast Engine] Starting compilation for: ${targetPathOrUrl}`);
   const startTime = Date.now();
 
   // 1. Scan Repository
@@ -82,7 +82,7 @@ export async function runOneShotVideo(targetPathOrUrl, options = {}) {
   }
 
   const durationTotal = ((Date.now() - startTime) / 1000).toFixed(1);
-  console.log(`\n🎉 [OneShot Video Engine] Complete in ${durationTotal}s! Video: ${videoResult.outputMp4}\n`);
+  console.log(`\n🎉 [LaunchCast Engine] Complete in ${durationTotal}s! Video: ${videoResult.outputMp4}\n`);
 
   return {
     repoData,

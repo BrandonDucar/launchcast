@@ -20,7 +20,7 @@ export class RepoScanner {
    */
   async resolve() {
     if (this.target.startsWith("http://") || this.target.startsWith("https://") || this.target.startsWith("git@")) {
-      const tempDir = path.join(process.cwd(), ".oneshot_cache", "repo_" + Date.now());
+      const tempDir = path.join(process.cwd(), ".launchcast_cache", "repo_" + Date.now());
       fs.mkdirSync(tempDir, { recursive: true });
       console.log(`[RepoScanner] Cloning ${this.target} -> ${tempDir}...`);
       execSync(`git clone --depth 1 "${this.target}" "${tempDir}"`, { stdio: "inherit" });

@@ -172,7 +172,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n🎬 OneShot Video Web Studio running at: http://localhost:${PORT}`);
+  console.log(`\n🎬 LaunchCast Web Studio running at: http://localhost:${PORT}`);
   console.log(`   Interactive Studio UI: http://localhost:${PORT}`);
   console.log(`   Zero-Dependency Native Runtime (Node.js 22)\n`);
 });

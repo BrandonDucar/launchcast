@@ -1,12 +1,11 @@
 {
-  "name": "oneshot-video",
+  "name": "launchcast",
   "version": "1.0.0",
   "description": "Autonomous Repo-to-Broadcast Launch Video Engine powered by Google Workspace & FFmpeg Compiler",
   "type": "module",
   "main": "src/index.mjs",
   "bin": {
-    "oneshot": "./cli.mjs",
-    "oneshot-video": "./cli.mjs"
+    "launchcast": "./cli.mjs"
   },
   "scripts": {
     "start": "node server.mjs",
@@ -25,7 +24,7 @@
     "remotion",
     "autonomous-agent"
   ],
-  "author": "Brandon Ducar & OneShot Team",
+  "author": "Brandon Ducar & LaunchCast Team",
   "license": "Apache-2.0",
   "dependencies": {
     "dotenv": "^16.4.7",

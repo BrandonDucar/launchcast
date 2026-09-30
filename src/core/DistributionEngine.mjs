@@ -17,12 +17,12 @@ export class DistributionEngine {
    */
   generateReadmeEmbed(videoTitle, videoUrlOrPath, thumbnailUrl = "media/demo_thumbnail.png") {
     return [
-      `<!-- ONESHOT_LAUNCH_VIDEO_START -->`,
+      `<!-- LAUNCHCAST_VIDEO_START -->`,
       `## 🎬 30-Second Launch Reel`,
       ``,
       `[![${videoTitle}](${thumbnailUrl})](${videoUrlOrPath})`,
-      `> 📹 *Auto-compiled from repository AST & Google Workspace briefs via [OneShot Video](https://github.com/BrandonDucar/oneshot-video).*`,
-      `<!-- ONESHOT_LAUNCH_VIDEO_END -->`
+      `> 📹 *Auto-compiled from repository AST & Google Workspace briefs via [LaunchCast](https://github.com/BrandonDucar/launchcast).*`,
+      `<!-- LAUNCHCAST_VIDEO_END -->`
     ].join("\n");
   }
 
@@ -40,10 +40,10 @@ export class DistributionEngine {
 
     let content = fs.readFileSync(readmePath, "utf8");
 
-    if (content.includes("<!-- ONESHOT_LAUNCH_VIDEO_START -->")) {
+    if (content.includes("<!-- LAUNCHCAST_VIDEO_START -->")) {
       // Replace existing block
       content = content.replace(
-        /<!-- ONESHOT_LAUNCH_VIDEO_START -->[\s\S]*?<!-- ONESHOT_LAUNCH_VIDEO_END -->/,
+        /<!-- LAUNCHCAST_VIDEO_START -->[\s\S]*?<!-- LAUNCHCAST_VIDEO_END -->/,
         embedMarkdown
       );
     } else {

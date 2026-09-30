@@ -25,7 +25,7 @@ export class FarcasterBroadcaster {
       ``,
       `"${hook}"`,
       ``,
-      `⚡ Compiled directly from codebase AST via @oneshot-video.`,
+      `⚡ Compiled directly from codebase AST via @launchcast.`,
       repoUrl ? `🔗 Repo: ${repoUrl}` : "",
       videoUrl ? `📹 Watch: ${videoUrl}` : ""
     ].filter(Boolean).join("\n");
@@ -94,7 +94,7 @@ export class FarcasterBroadcaster {
    */
   generateFrameManifest(storyboard, appUrl) {
     return {
-      name: `OneShot Video — ${storyboard.projectName}`,
+      name: `LaunchCast — ${storyboard.projectName}`,
       iconUrl: `${appUrl}/icon.png`,
       homeUrl: appUrl,
       imageUrl: `${appUrl}/frame_preview.png`,

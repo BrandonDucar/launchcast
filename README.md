@@ -1,4 +1,4 @@
-# 🎬 OneShot Video — Autonomous Repo-to-Broadcast Launch Video Engine
+# 🎬 LaunchCast — Autonomous Repo-to-Broadcast Video Engine
 
 [![Node.js](https://img.shields.io/badge/Node.js-22.x-339933?style=for-the-badge&logo=node.js)](https://nodejs.org)
 [![FFmpeg](https://img.shields.io/badge/FFmpeg-Native_60fps-007808?style=for-the-badge&logo=ffmpeg)](https://ffmpeg.org)
@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](LICENSE)
 
 > **"Don't just ship code. Broadcast it."**  
-> OneShot Video turns entire code repositories and Google Workspace launch briefs into high-converting, 30-second kinetic launch reels in a single command.
+> LaunchCast turns entire code repositories and Google Workspace launch briefs into high-converting, 30-second kinetic launch reels in a single command.
 
 ---
 
@@ -20,7 +20,7 @@
 
 ## ⚡ The Next-Level Solution: Google Workspace + Codebase AST
 
-OneShot Video solves this by treating video creation as a **compilation problem**:
+LaunchCast solves this by treating video creation as a **compilation problem**:
 
 ```mermaid
 flowchart TD
@@ -82,8 +82,8 @@ Every video is deterministically compiled against a proven retention curve:
 
 ### 1. Installation
 ```bash
-git clone https://github.com/BrandonDucar/oneshot-video.git
-cd oneshot-video
+git clone https://github.com/BrandonDucar/launchcast.git
+cd launchcast
 npm install
 ```
 
@@ -113,7 +113,7 @@ node server.mjs
 ## 🖼️ Why Google Slides is the Secret Weapon
 
 Instead of forcing users to learn a complicated timeline editor or endure black-box re-prompting:
-1. OneShot Video compiles the storyboard into a **5-slide Google Slides deck**.
+1. LaunchCast compiles the storyboard into a **5-slide Google Slides deck**.
 2. **Slide 1-4:** Keyframes, visual directives, and overlay headlines.
 3. **Speaker Notes:** Contain the exact voiceover script timed to the second.
 4. Anyone on your team can open Google Slides, edit words, swap a screenshot, and hit **"Render"**.
@@ -125,15 +125,17 @@ Instead of forcing users to learn a complicated timeline editor or endure black-
 
 ```text
 Usage:
-  oneshot <target> [options]
-  oneshot scan <target>
-  oneshot compile <target>
-  oneshot ui
+  launchcast <target> [options]
+  launchcast scan <target>
+  launchcast compile <target>
+  launchcast ui
 
 Options:
   --format          "vertical" (1080x1920) or "landscape" (1920x1080)
   --slides          Export storyboard directly to Google Slides for team editing
   --publish         Auto-upload to Google Drive, YouTube Shorts, and inject into README
+  --farcaster       Broadcast launch cast directly to Farcaster via Neynar
+  --channel <name>  Farcaster channel (e.g. dev, launch, build, base; default: dev)
   --doc <docId>     Optional Google Doc ID containing PRD / launch copy
 ```
 
@@ -141,4 +143,4 @@ Options:
 
 ## 📄 License
 
-Apache-2.0 © Brandon Ducar & OneShot Team
+Apache-2.0 © Brandon Ducar & LaunchCast Team

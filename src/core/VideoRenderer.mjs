@@ -92,7 +92,7 @@ export class VideoRenderer {
     // Sanitize text for FFmpeg drawtext
     const cleanHeadline = (beat.headline || "").replace(/['":\\]/g, "");
     const cleanScript = (beat.voiceoverScript || "").replace(/['":\\]/g, "").slice(0, 110);
-    const badgeText = `ONESHOT VIDEO • BEAT ${beat.beatId.slice(0, 7)}`;
+    const badgeText = `LAUNCHCAST • BEAT ${beat.beatId.slice(0, 7)}`;
 
     // Build FFmpeg video filters
     const vfParts = [
