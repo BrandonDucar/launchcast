@@ -4,6 +4,7 @@ import { ScriptCompiler } from "./core/ScriptCompiler.mjs";
 import { AudioSynthesizer } from "./core/AudioSynthesizer.mjs";
 import { VideoRenderer } from "./core/VideoRenderer.mjs";
 import { DistributionEngine } from "./core/DistributionEngine.mjs";
+import { FarcasterBroadcaster } from "./core/FarcasterBroadcaster.mjs";
 
 export {
   RepoScanner,
@@ -11,7 +12,8 @@ export {
   ScriptCompiler,
   AudioSynthesizer,
   VideoRenderer,
-  DistributionEngine
+  DistributionEngine,
+  FarcasterBroadcaster
 };
 
 /**
@@ -54,22 +56,29 @@ export async function runOneShotVideo(targetPathOrUrl, options = {}) {
   const videoResult = await renderer.render(storyboard, audio.audioPath, format);
   console.log(`✅ [5/5] Master Video Rendered: ${videoResult.outputMp4} (${videoResult.fileSizeMb} MB)`);
 
-  // 6. Distribution (Google Drive, YouTube, GitHub README PR)
+  // 6. Distribution (Google Drive, YouTube, Farcaster, GitHub README PR)
   const distributor = new DistributionEngine(options);
+  const farcaster = new FarcasterBroadcaster(options);
   let distributionResult = {};
 
-  if (options.publish) {
+  if (options.publish || options.farcaster) {
     console.log(`\n🌐 [Distribution] Launching distribution cascade...`);
     const driveUpload = await distributor.uploadToGoogleDrive(videoResult.outputMp4);
     const ytShort = await distributor.publishToYouTube(videoResult.outputMp4, { title: storyboard.title });
     
+    // Broadcast to Farcaster
+    const farcasterCast = await farcaster.broadcastCast(storyboard, ytShort.watchUrl || driveUpload.shareableLink, {
+      repoUrl: targetPathOrUrl.startsWith("http") ? targetPathOrUrl : undefined,
+      channelId: options.channelId || "dev"
+    });
+
     // Inject into local README if scanning a local repo
     if (!targetPathOrUrl.startsWith("http")) {
       const embedSnippet = distributor.generateReadmeEmbed(storyboard.title, ytShort.watchUrl);
       distributor.injectIntoReadme(scanner.localPath, embedSnippet);
     }
 
-    distributionResult = { driveUpload, ytShort };
+    distributionResult = { driveUpload, ytShort, farcasterCast };
   }
 
   const durationTotal = ((Date.now() - startTime) / 1000).toFixed(1);

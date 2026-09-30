@@ -26,11 +26,13 @@ Options:
   --format          "vertical" (1080x1920, default) or "landscape" (1920x1080)
   --slides          Export storyboard directly to Google Slides for team editing
   --publish         Auto-upload to Google Drive, YouTube Shorts, and inject into README
+  --farcaster       Broadcast launch cast directly to Farcaster via Neynar
+  --channel <name>  Farcaster channel (e.g. dev, launch, build, base; default: dev)
   --doc <docId>     Optional Google Doc ID containing PRD / launch copy
 
 Examples:
   node cli.mjs ../dreamnetopi-hackday
-  node cli.mjs https://github.com/BrandonDucar/dreamnetopi-hackday --format landscape
+  node cli.mjs https://github.com/BrandonDucar/dreamnetopi-hackday --farcaster --channel launch
   node cli.mjs ui
 `);
 }
@@ -70,8 +72,10 @@ async function main() {
   const format = args.includes("--landscape") ? "landscape" : (args.find(a => a.startsWith("--format="))?.split("=")[1] || "vertical");
   const exportSlides = args.includes("--slides");
   const publish = args.includes("--publish");
+  const farcaster = args.includes("--farcaster");
+  const channelId = args.find(a => a.startsWith("--channel="))?.split("=")[1] || "dev";
 
-  await runOneShotVideo(target, { format, exportSlides, publish });
+  await runOneShotVideo(target, { format, exportSlides, publish, farcaster, channelId });
 }
 
 main().catch(err => {
