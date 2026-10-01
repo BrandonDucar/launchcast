@@ -14,7 +14,25 @@ Local rendering is implemented. Google Drive and YouTube uploads are not: their
 adapters return `success: false` and `NOT_IMPLEMENTED`, without provider IDs or
 public links. The Workspace/AST/Slides descriptions below include planned and
 prototype behavior, not verified production integrations. Do not expose the
-Web Studio to untrusted users until its scan/render input boundaries are hardened.
+Web Studio to untrusted users: HTTP authentication, request limits, static-file
+containment and origin policy still need a separate hardening pass.
+
+Scanner/render subprocesses use argument arrays, bounded inputs and execution
+deadlines. Unattended remote scans accept only public GitHub HTTPS repository
+URLs, with ambient Git credentials/configuration disabled. For private or SSH
+repositories, clone through your trusted workflow first and pass the local path.
+Local metadata reads are bounded; rendering accepts raster media only within
+`allowedMediaRoots` (the scanned repository in the full pipeline, otherwise the
+working directory). Audio inputs default to the output directory. Text is literal,
+not executable FFmpeg filter syntax. Output files cannot replace existing files.
+These checks are not an OS sandbox, disk quota, or public multi-tenant boundary.
+The single-user Studio keeps a bounded in-memory list of discovered media paths
+and passes their scan roots to rendering; rescan after a restart or eviction.
+Remote clone checkout bytes and cumulative cache size are not yet quota-limited.
+
+The audio generator produces a **synthetic backing track**, not spoken narration.
+It now fails when FFmpeg fails or produces no file. Storyboards must contain 1-8
+beats, each 0.1-30 seconds, with a matching total of at most 120 seconds.
 
 `--publish` requests the Google upload path, not Farcaster. `--farcaster` is a
 separate explicit request and currently remains blocked because no implemented
@@ -30,6 +48,9 @@ reconciliation before retry, and missing credentials are `NOT_CONFIGURED`, not
 simulated success. No live posting is exercised by the tests.
 
 Run the offline regression suite with `npm test` (Node.js built-in test runner).
+For an opt-in, real local FFmpeg/ffprobe check with synthetic inputs, run
+`node test/render-canary.mjs <existing-evidence-directory>`. It retains two
+one-second MP4s and audio in a uniquely named subdirectory; it never publishes.
 
 ---
 

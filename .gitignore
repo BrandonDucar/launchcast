@@ -1,5 +1,7 @@
 node_modules/
 .oneshot_cache/
+.launchcast_cache/
+output/.render-*/
 .env
 output/*.wav
 output/*.txt

@@ -3,6 +3,8 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { RepoScanner, ScriptCompiler, AudioSynthesizer, VideoRenderer, WorkspaceConnector } from "./src/index.mjs";
+import { StudioMediaScope } from "./src/core/StudioMediaScope.mjs";
+import { validateStoryboard } from "./src/core/ProcessSafety.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,6 +12,7 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 3344;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const OUTPUT_DIR = path.join(__dirname, "output");
+const scannedMedia = new StudioMediaScope();
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -70,6 +73,7 @@ const server = http.createServer(async (req, res) => {
 
       const scanner = new RepoScanner(target);
       const repoData = await scanner.scan();
+      scannedMedia.register(scanner.localPath, repoData.mediaAssets);
       return sendJson(res, 200, { ok: true, repoData });
     } catch (err) {
       console.error(err);
@@ -97,12 +101,14 @@ const server = http.createServer(async (req, res) => {
       if (!storyboard || !storyboard.beats) {
         return sendJson(res, 400, { ok: false, error: "Invalid storyboard payload" });
       }
+      validateStoryboard(storyboard);
+      const allowedMediaRoots = scannedMedia.rootsFor(storyboard);
 
       console.log(`[Server] Rendering "${storyboard.title}" (${format})...`);
       const synthesizer = new AudioSynthesizer({ outputDir: OUTPUT_DIR });
       const audio = await synthesizer.synthesize(storyboard);
 
-      const renderer = new VideoRenderer({ outputDir: OUTPUT_DIR });
+      const renderer = new VideoRenderer({ outputDir: OUTPUT_DIR, allowedMediaRoots });
       const result = await renderer.render(storyboard, audio.audioPath, format);
 
       return sendJson(res, 200, {

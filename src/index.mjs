@@ -20,7 +20,7 @@ export {
  * End-to-end runner that executes the entire LaunchCast pipeline.
  */
 export async function runLaunchCast(targetPathOrUrl, options = {}) {
-  console.log(`\n🚀 [LaunchCast Engine] Starting compilation for: ${targetPathOrUrl}`);
+  console.log("\n[LaunchCast Engine] Starting local launch compilation...");
   const startTime = Date.now();
 
   // 1. Scan Repository
@@ -51,7 +51,7 @@ export async function runLaunchCast(targetPathOrUrl, options = {}) {
   console.log(`✅ [4/5] Audio Track Ready: ${audio.audioPath}`);
 
   // 5. Render Master Broadcast Video (FFmpeg)
-  const renderer = new VideoRenderer(options);
+  const renderer = new VideoRenderer({ ...options, allowedMediaRoots: [scanner.localPath] });
   const format = options.format || "vertical"; // or "landscape"
   const videoResult = await renderer.render(storyboard, audio.audioPath, format);
   console.log(`✅ [5/5] Master Video Rendered: ${videoResult.outputMp4} (${videoResult.fileSizeMb} MB)`);
