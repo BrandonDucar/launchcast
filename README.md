@@ -8,6 +8,29 @@
 > **"Don't just ship code. Broadcast it."**  
 > LaunchCast turns entire code repositories and Google Workspace launch briefs into high-converting, 30-second kinetic launch reels in a single command.
 
+## Current implementation boundary
+
+Local rendering is implemented. Google Drive and YouTube uploads are not: their
+adapters return `success: false` and `NOT_IMPLEMENTED`, without provider IDs or
+public links. The Workspace/AST/Slides descriptions below include planned and
+prototype behavior, not verified production integrations. Do not expose the
+Web Studio to untrusted users until its scan/render input boundaries are hardened.
+
+`--publish` requests the Google upload path, not Farcaster. `--farcaster` is a
+separate explicit request and currently remains blocked because no implemented
+upload path supplies an accepted public video. It does not implicitly upload to
+Google or change a README. Requested but incomplete distribution exits nonzero
+after preserving the local render. A future upload adapter must provide a real
+provider ID, matching provider URL, and confirmed `publiclyAccessible: true`;
+absent, failed, private, or mismatched results cannot be cast or embedded.
+
+The Neynar adapter reports `ACCEPTED` only for a response with a valid cast hash.
+It does not claim independent public verification. Ambiguous outcomes require
+reconciliation before retry, and missing credentials are `NOT_CONFIGURED`, not
+simulated success. No live posting is exercised by the tests.
+
+Run the offline regression suite with `npm test` (Node.js built-in test runner).
+
 ---
 
 ## 💡 The Core Problem
@@ -98,7 +121,7 @@ node cli.mjs https://github.com/user/my-repo --format landscape
 # Export to Google Slides for collaborative team editing
 node cli.mjs ../my-cool-project --slides
 
-# Full autonomous distribution (Drive + YouTube + README PR)
+# Request distribution (currently reports NOT_IMPLEMENTED and exits nonzero)
 node cli.mjs ../my-cool-project --publish
 ```
 
@@ -133,8 +156,8 @@ Usage:
 Options:
   --format          "vertical" (1080x1920) or "landscape" (1920x1080)
   --slides          Export storyboard directly to Google Slides for team editing
-  --publish         Auto-upload to Google Drive, YouTube Shorts, and inject into README
-  --farcaster       Broadcast launch cast directly to Farcaster via Neynar
+  --publish         Request Google uploads (currently unavailable); not Farcaster
+  --farcaster       Request Farcaster; blocked without an accepted public upload
   --channel <name>  Farcaster channel (e.g. dev, launch, build, base; default: dev)
   --doc <docId>     Optional Google Doc ID containing PRD / launch copy
 ```

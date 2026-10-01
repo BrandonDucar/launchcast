@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { FarcasterBroadcaster, isHttpsUrl } from "./FarcasterBroadcaster.mjs";
 
 /**
  * Handles Google Drive cloud backups, YouTube Shorts publishing, and GitHub README PR injection.
@@ -21,7 +22,7 @@ export class DistributionEngine {
       `## 🎬 30-Second Launch Reel`,
       ``,
       `[![${videoTitle}](${thumbnailUrl})](${videoUrlOrPath})`,
-      `> 📹 *Auto-compiled from repository AST & Google Workspace briefs via [LaunchCast](https://github.com/BrandonDucar/launchcast).*`,
+      `> *Rendered with [LaunchCast](https://github.com/BrandonDucar/launchcast).*`,
       `<!-- LAUNCHCAST_VIDEO_END -->`
     ].join("\n");
   }
@@ -68,21 +69,11 @@ export class DistributionEngine {
    * @param {string} filePath - Local MP4 path
    */
   async uploadToGoogleDrive(filePath) {
-    const fileName = path.basename(filePath);
-    console.log(`[DistributionEngine] Uploading ${fileName} to Google Drive...`);
-
-    // In live mode with googleapis:
-    // const drive = google.drive({ version: 'v3', auth });
-    // const res = await drive.files.create({ requestBody: { name: fileName }, media: { body: fs.createReadStream(filePath) } });
-
-    const driveFileId = `drive_${Date.now()}`;
-    const driveLink = `https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`;
-
     return {
-      success: true,
-      fileId: driveFileId,
-      shareableLink: driveLink,
-      fileName
+      success: false,
+      status: "NOT_IMPLEMENTED",
+      provider: "google-drive",
+      error: "Google Drive upload is not implemented. The rendered file remains local."
     };
   }
 
@@ -92,22 +83,76 @@ export class DistributionEngine {
    * @param {object} metadata - Title, description, tags
    */
   async publishToYouTube(filePath, metadata = {}) {
-    const title = metadata.title || "New Open-Source Release in 30 Seconds #Shorts";
-    console.log(`[DistributionEngine] Publishing YouTube Short: "${title}"...`);
-
-    // In live mode with googleapis:
-    // const youtube = google.youtube({ version: 'v3', auth });
-    // const res = await youtube.videos.insert({ part: 'snippet,status', requestBody: { ... } });
-
-    const videoId = `yt_${Date.now().toString(36)}`;
-    const watchUrl = `https://youtube.com/shorts/${videoId}`;
-
     return {
-      success: true,
-      videoId,
-      watchUrl,
-      title,
-      publishedAt: new Date().toISOString()
+      success: false,
+      status: "NOT_IMPLEMENTED",
+      provider: "youtube",
+      error: "YouTube upload is not implemented. No video has been published."
     };
   }
+}
+
+function acceptedPublicVideo(result, provider) {
+  if (result?.success !== true || result.publiclyAccessible !== true) return undefined;
+  const id = provider === "youtube" ? result.videoId : result.fileId;
+  const link = provider === "youtube" ? result.watchUrl : result.shareableLink;
+  if (typeof id !== "string" || !/^[A-Za-z0-9_-]+$/.test(id) || !isHttpsUrl(link)) return undefined;
+  const url = new URL(link);
+  const matches = provider === "youtube"
+    ? ["youtube.com", "www.youtube.com"].includes(url.hostname) && url.pathname === `/shorts/${id}`
+    : url.hostname === "drive.google.com" && url.pathname === `/file/d/${id}/view`;
+  return matches ? link : undefined;
+}
+
+async function attempt(operation) {
+  try {
+    return await operation();
+  } catch {
+    // A transport exception may occur after a provider has accepted an effect.
+    return { success: false, status: "OUTCOME_UNKNOWN", requiresReconciliation: true };
+  }
+}
+
+/** Distribute only to explicitly requested targets; unavailable uploads never fan out. */
+export async function distributeVideo(filePath, storyboard, options = {}, adapters = {}) {
+  if (!options.publish && !options.farcaster) return { status: "NOT_REQUESTED", success: null };
+  const distributor = adapters.distributor || new DistributionEngine(options);
+  const broadcaster = adapters.broadcaster || new FarcasterBroadcaster(options);
+  const result = { status: "INCOMPLETE", success: false, readmeUpdated: false };
+
+  if (options.publish) {
+    result.driveUpload = await attempt(() => distributor.uploadToGoogleDrive(filePath));
+    result.ytShort = await attempt(() => distributor.publishToYouTube(filePath, { title: storyboard.title }));
+  }
+
+  const videoUrl = acceptedPublicVideo(result.ytShort, "youtube")
+    || acceptedPublicVideo(result.driveUpload, "drive");
+
+  if (options.farcaster) {
+    result.farcasterCast = videoUrl
+      ? await attempt(() => broadcaster.broadcastCast(storyboard, videoUrl, {
+          repoUrl: options.repoUrl, channelId: options.channelId || "dev"
+        }))
+      : { success: false, status: "BLOCKED", reason: "NO_ACCEPTED_PUBLIC_VIDEO" };
+  }
+
+  if (options.publish && options.localPath && videoUrl) {
+    try {
+      result.readmeUpdated = distributor.injectIntoReadme(
+        options.localPath, distributor.generateReadmeEmbed(storyboard.title, videoUrl)
+      );
+    } catch {
+      result.readmeError = "README_UPDATE_FAILED";
+    }
+  }
+
+  const uploadsComplete = !options.publish || (
+    Boolean(acceptedPublicVideo(result.driveUpload, "drive"))
+    && Boolean(acceptedPublicVideo(result.ytShort, "youtube"))
+  );
+  const castComplete = !options.farcaster || result.farcasterCast?.success === true;
+  const readmeComplete = !options.publish || !options.localPath || result.readmeUpdated === true;
+  result.success = uploadsComplete && castComplete && readmeComplete;
+  result.status = result.success ? "COMPLETED" : "INCOMPLETE";
+  return result;
 }

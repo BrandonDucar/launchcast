@@ -3,7 +3,7 @@ import { WorkspaceConnector } from "./core/WorkspaceConnector.mjs";
 import { ScriptCompiler } from "./core/ScriptCompiler.mjs";
 import { AudioSynthesizer } from "./core/AudioSynthesizer.mjs";
 import { VideoRenderer } from "./core/VideoRenderer.mjs";
-import { DistributionEngine } from "./core/DistributionEngine.mjs";
+import { DistributionEngine, distributeVideo } from "./core/DistributionEngine.mjs";
 import { FarcasterBroadcaster } from "./core/FarcasterBroadcaster.mjs";
 
 export {
@@ -57,32 +57,14 @@ export async function runLaunchCast(targetPathOrUrl, options = {}) {
   console.log(`✅ [5/5] Master Video Rendered: ${videoResult.outputMp4} (${videoResult.fileSizeMb} MB)`);
 
   // 6. Distribution (Google Drive, YouTube, Farcaster, GitHub README PR)
-  const distributor = new DistributionEngine(options);
-  const farcaster = new FarcasterBroadcaster(options);
-  let distributionResult = {};
-
-  if (options.publish || options.farcaster) {
-    console.log(`\n🌐 [Distribution] Launching distribution cascade...`);
-    const driveUpload = await distributor.uploadToGoogleDrive(videoResult.outputMp4);
-    const ytShort = await distributor.publishToYouTube(videoResult.outputMp4, { title: storyboard.title });
-    
-    // Broadcast to Farcaster
-    const farcasterCast = await farcaster.broadcastCast(storyboard, ytShort.watchUrl || driveUpload.shareableLink, {
-      repoUrl: targetPathOrUrl.startsWith("http") ? targetPathOrUrl : undefined,
-      channelId: options.channelId || "dev"
-    });
-
-    // Inject into local README if scanning a local repo
-    if (!targetPathOrUrl.startsWith("http")) {
-      const embedSnippet = distributor.generateReadmeEmbed(storyboard.title, ytShort.watchUrl);
-      distributor.injectIntoReadme(scanner.localPath, embedSnippet);
-    }
-
-    distributionResult = { driveUpload, ytShort, farcasterCast };
-  }
+  const distributionResult = await distributeVideo(videoResult.outputMp4, storyboard, {
+    ...options,
+    repoUrl: targetPathOrUrl.startsWith("http") ? targetPathOrUrl : undefined,
+    localPath: targetPathOrUrl.startsWith("http") ? undefined : scanner.localPath
+  });
 
   const durationTotal = ((Date.now() - startTime) / 1000).toFixed(1);
-  console.log(`\n🎉 [LaunchCast Engine] Complete in ${durationTotal}s! Video: ${videoResult.outputMp4}\n`);
+  console.log(`\n[LaunchCast Engine] Render complete in ${durationTotal}s. Video: ${videoResult.outputMp4}. Distribution: ${distributionResult.status}\n`);
 
   return {
     repoData,
