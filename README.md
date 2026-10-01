@@ -149,8 +149,34 @@ node cli.mjs ../my-cool-project --publish
 ### 3. Launch the Interactive Web Studio
 ```bash
 node server.mjs
-# Open http://localhost:3344 in your browser
+# Open http://127.0.0.1:3344 in your browser
 ```
+
+Studio is a **local, single-user tool**, not a public web service. It binds only
+to `127.0.0.1`, rejects foreign Host/Origin requests, and establishes a temporary
+same-origin browser session before work or video downloads. Restarting Studio
+invalidates that session. Requests are limited to 64 KiB (4 MiB for full scan
+metadata sent to compile) and one active operation.
+
+By default, Studio scans only directories inside the directory it was started
+from. The repository path `.` selects that directory. To allow other local
+repositories, configure their roots explicitly before starting it (PowerShell):
+
+```powershell
+$env:LAUNCHCAST_SCAN_ROOTS = '["C:/repos/project-one","C:/repos/project-two"]'
+node server.mjs
+```
+
+Remote GitHub cloning remains available in the trusted CLI, but is disabled in
+Studio. Only completed MP4s from the current Studio process are served; older
+outputs stay on disk. WAVs, intermediate render files and other files are not
+download routes. Google Docs import and Slides export return `501` in Studio;
+they do not create or read real Google artifacts. The library/CLI Workspace
+adapter still contains prototypes and must not be treated as provider evidence.
+
+This browser boundary is not protection against another program running as the
+same OS user. FFmpeg is synchronous, and aggregate disk/decoder quotas are not
+implemented. Do not put Studio behind a public proxy or expose it to a network.
 
 ---
 

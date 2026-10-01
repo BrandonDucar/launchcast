@@ -77,6 +77,37 @@ test("FFmpeg failure cannot return a fabricated audio artifact", async (t) => {
   await assert.rejects(audio.synthesize({ totalDurationSec: 1, beats: [beat] }));
 });
 
+test("audio executable lookup never inherits an untrusted repository working directory", async t => {
+  const { direct } = isolateProcesses(t);
+  const root = fixture(t);
+  const repo = path.join(root, "untrusted-repo");
+  const output = path.join(repo, "output");
+  fs.mkdirSync(output, { recursive: true });
+  fs.writeFileSync(path.join(repo, "ffmpeg.exe"), "INERT FIXTURE, NEVER EXECUTED");
+  fs.writeFileSync(path.join(output, "ffmpeg.exe"), "INERT FIXTURE, NEVER EXECUTED");
+  let workingDirectory;
+  direct.mock.mockImplementation((command, args, options) => {
+    assert.equal(command, "ffmpeg");
+    workingDirectory = options.cwd;
+    assert.ok(workingDirectory, "Audio must not inherit the caller cwd");
+    assert.equal(path.dirname(workingDirectory), output);
+    assert.ok(path.basename(workingDirectory).startsWith(".render-"));
+    assert.ok(!fs.existsSync(path.join(workingDirectory, "ffmpeg.exe")));
+    assert.equal(options.shell, false);
+    fs.writeFileSync(path.resolve(workingDirectory, args.at(-1)), "SYNTHETIC-NOT-A-WAV");
+    return Buffer.alloc(0);
+  });
+  const previous = process.cwd();
+  let result;
+  try {
+    process.chdir(repo);
+    result = await new AudioSynthesizer({ outputDir: output }).synthesize({ totalDurationSec: 1, beats: [beat] });
+  } finally { process.chdir(previous); }
+  assert.ok(fs.existsSync(result.audioPath));
+  assert.ok(!fs.existsSync(workingDirectory));
+  assert.equal(fs.readFileSync(path.join(output, "ffmpeg.exe"), "utf8"), "INERT FIXTURE, NEVER EXECUTED");
+});
+
 test("public clone uses argument arrays and isolated Git configuration", async (t) => {
   const { shell, direct } = isolateProcesses(t);
   const root = fixture(t);

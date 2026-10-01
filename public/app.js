@@ -2,6 +2,23 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentRepoData = null;
   let currentStoryboard = null;
   let activeFormat = "vertical";
+  let sessionToken;
+
+  async function studioPost(url, payload) {
+    if (!sessionToken) {
+      const response = await fetch("/api/session", { cache: "no-store" });
+      const session = await response.json();
+      if (!response.ok || !session.ok) throw new Error(session.error || "Local Studio session unavailable");
+      sessionToken = session.token;
+    }
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-LaunchCast-Session": sessionToken },
+      body: JSON.stringify(payload)
+    });
+    if (response.status === 401) sessionToken = undefined;
+    return response;
+  }
 
   // Elements
   const inputRepoPath = document.getElementById("input-repo-path");
@@ -64,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const docId = inputDocId.value.trim();
 
     if (!target) {
-      showToast("Please enter a GitHub URL or local repo path");
+      showToast("Please enter a local repository path");
       return;
     }
 
@@ -73,22 +90,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       // 1. Scan
-      const scanRes = await fetch("/api/scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target })
-      });
+      const scanRes = await studioPost("/api/scan", { target });
       const scanData = await scanRes.json();
       if (!scanData.ok) throw new Error(scanData.error);
       currentRepoData = scanData.repoData;
 
       // 2. Compile Storyboard
       btnScanCompile.innerHTML = "<span>⚙️</span> Compiling 4-Beat Script...";
-      const compileRes = await fetch("/api/compile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ repoData: currentRepoData, docId })
-      });
+      const compileRes = await studioPost("/api/compile", { repoData: currentRepoData, docId });
       const compileData = await compileRes.json();
       if (!compileData.ok) throw new Error(compileData.error);
       currentStoryboard = compileData.storyboard;
@@ -131,12 +140,9 @@ document.addEventListener("DOMContentLoaded", () => {
     btnExportSlides.innerHTML = "<span>⏳</span> Exporting to Google Slides...";
 
     try {
-      const res = await fetch("/api/slides/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storyboard: currentStoryboard })
-      });
+      const res = await studioPost("/api/slides/export", { storyboard: currentStoryboard });
       const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Slides export unavailable");
       if (data.ok) {
         showToast("🖼️ Google Slides Storyboard Deck Created!");
         window.open(data.deck.presentationUrl, "_blank");
@@ -182,11 +188,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showToast("Starting FFmpeg synthesis & kinetic subtitle burn...");
 
     try {
-      const res = await fetch("/api/render", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storyboard: currentStoryboard, format: activeFormat })
-      });
+      const res = await studioPost("/api/render", { storyboard: currentStoryboard, format: activeFormat });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
 

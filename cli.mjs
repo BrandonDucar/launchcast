@@ -2,6 +2,7 @@
 import { runLaunchCast, RepoScanner, ScriptCompiler } from "./src/index.mjs";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -45,7 +46,8 @@ async function main() {
 
   if (command === "ui") {
     console.log("🌐 Starting LaunchCast Web Studio...");
-    const serverProcess = spawn("node", ["server.mjs"], { stdio: "inherit" });
+    const serverProcess = spawn(process.execPath, [fileURLToPath(new URL("./server.mjs", import.meta.url))], { stdio: "inherit", windowsHide: true });
+    serverProcess.on("error", () => { console.error("[LaunchCast] Local Studio failed to start"); process.exitCode = 1; });
     return;
   }
 
