@@ -2,6 +2,7 @@
 import { runLaunchCast, RepoScanner, ScriptCompiler } from "./src/index.mjs";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -25,8 +26,8 @@ Commands:
 Options:
   --format          "vertical" (1080x1920, default) or "landscape" (1920x1080)
   --slides          Export storyboard directly to Google Slides for team editing
-  --publish         Auto-upload to Google Drive, YouTube Shorts, and inject into README
-  --farcaster       Broadcast launch cast directly to Farcaster via Neynar
+  --publish         Request Google uploads (currently unavailable); never implies Farcaster
+  --farcaster       Request Farcaster; blocked without an accepted public upload
   --channel <name>  Farcaster channel (e.g. dev, launch, build, base; default: dev)
   --doc <docId>     Optional Google Doc ID containing PRD / launch copy
 
@@ -45,7 +46,8 @@ async function main() {
 
   if (command === "ui") {
     console.log("🌐 Starting LaunchCast Web Studio...");
-    const serverProcess = spawn("node", ["server.mjs"], { stdio: "inherit" });
+    const serverProcess = spawn(process.execPath, [fileURLToPath(new URL("./server.mjs", import.meta.url))], { stdio: "inherit", windowsHide: true });
+    serverProcess.on("error", () => { console.error("[LaunchCast] Local Studio failed to start"); process.exitCode = 1; });
     return;
   }
 
@@ -75,7 +77,11 @@ async function main() {
   const farcaster = args.includes("--farcaster");
   const channelId = args.find(a => a.startsWith("--channel="))?.split("=")[1] || "dev";
 
-  await runLaunchCast(target, { format, exportSlides, publish, farcaster, channelId });
+  const result = await runLaunchCast(target, { format, exportSlides, publish, farcaster, channelId });
+  if ((publish || farcaster) && result.distributionResult.success !== true) {
+    console.error("[LaunchCast] Requested distribution did not complete. The rendered video remains local.");
+    process.exitCode = 1;
+  }
 }
 
 main().catch(err => {

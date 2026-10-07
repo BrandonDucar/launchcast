@@ -1,178 +1,121 @@
 import http from "node:http";
 import path from "node:path";
 import fs from "node:fs";
-import { fileURLToPath } from "node:url";
-import { RepoScanner, ScriptCompiler, AudioSynthesizer, VideoRenderer, WorkspaceConnector } from "./src/index.mjs";
+import { randomBytes } from "node:crypto";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { RepoScanner, ScriptCompiler, AudioSynthesizer, VideoRenderer } from "./src/index.mjs";
+import { StudioMediaScope } from "./src/core/StudioMediaScope.mjs";
+import { validateStoryboard, prepareOutputDir } from "./src/core/ProcessSafety.mjs";
+import { HttpError, admitLocalRequest, requestPath, matchesSession, cookieSession, parseJsonBody, localScanTarget, validateRepoData, serveFile } from "./src/core/StudioHttp.mjs";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const ROOT = path.dirname(fileURLToPath(import.meta.url));
+const PUBLIC_FILES = new Map([["/", ["index.html", "text/html; charset=utf-8"]], ["/index.html", ["index.html", "text/html; charset=utf-8"]], ["/app.js", ["app.js", "application/javascript; charset=utf-8"]], ["/style.css", ["style.css", "text/css; charset=utf-8"]]]);
+const POST_ROUTES = new Set(["/api/scan", "/api/compile", "/api/render", "/api/slides/export"]);
 
-const PORT = process.env.PORT || 3344;
-const PUBLIC_DIR = path.join(__dirname, "public");
-const OUTPUT_DIR = path.join(__dirname, "output");
-
-const MIME_TYPES = {
-  ".html": "text/html; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".js": "application/javascript; charset=utf-8",
-  ".mjs": "application/javascript; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".svg": "image/svg+xml",
-  ".mp4": "video/mp4",
-  ".wav": "audio/wav"
-};
-
-function sendJson(res, statusCode, data) {
-  res.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
-  });
+function json(res, status, data) {
+  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(data));
 }
 
-function parseJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = "";
-    req.on("data", chunk => (body += chunk));
-    req.on("end", () => {
-      try {
-        resolve(body ? JSON.parse(body) : {});
-      } catch (err) {
-        reject(err);
-      }
-    });
+export function createStudioServer(options = {}) {
+  const publicDir = fs.realpathSync(options.publicDir || path.join(ROOT, "public"));
+  const outputDir = prepareOutputDir(options.outputDir || path.join(ROOT, "output"));
+  const configuredRoots = options.scanRoots || [process.cwd()];
+  if (!Array.isArray(configuredRoots) || configuredRoots.length < 1 || configuredRoots.length > 16) throw new Error("Configure 1 to 16 local scan roots");
+  const scanRoots = configuredRoots.map(root => {
+    const real = fs.realpathSync(root);
+    if (!fs.statSync(real).isDirectory()) throw new Error("Scan root must be a directory");
+    return real;
   });
+  const token = randomBytes(32).toString("hex");
+  const scannedMedia = new StudioMediaScope();
+  const completedOutputs = new Set();
+  let busy = false;
+
+  const server = http.createServer({ maxHeaderSize: 16384 }, async (req, res) => {
+    req.on("error", () => {});
+    res.on("error", () => {});
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+    try {
+      const cookieName = admitLocalRequest(req);
+      const pathname = requestPath(req.url);
+      if (req.method === "GET" && pathname === "/api/session") {
+        res.setHeader("Set-Cookie", `${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/`);
+        return json(res, 200, { ok: true, token, mode: "LOCAL_SINGLE_USER" });
+      }
+      if (req.method === "POST") {
+        if (!POST_ROUTES.has(pathname)) throw new HttpError(404, "Route not found");
+        if (!matchesSession(req.headers["x-launchcast-session"], token)) throw new HttpError(401, "Reload Studio to establish a local session");
+        if (busy) throw new HttpError(429, "Studio is already processing a request");
+        busy = true;
+        try {
+          // Full scan metadata can include 100 multibyte paths plus package metadata.
+          const body = await parseJsonBody(req, pathname === "/api/compile" ? 4 * 1024 * 1024 : 64 * 1024);
+          if (pathname === "/api/scan") {
+            const scanner = new RepoScanner(localScanTarget(body.target, scanRoots));
+            const repoData = await scanner.scan();
+            scannedMedia.register(scanner.localPath, repoData.mediaAssets);
+            return json(res, 200, { ok: true, repoData });
+          }
+          if (pathname === "/api/compile") {
+            if (body.docId) throw new HttpError(501, "Google Docs import is not implemented; no document was read");
+            const storyboard = new ScriptCompiler().compile(validateRepoData(body.repoData));
+            return json(res, 200, { ok: true, storyboard });
+          }
+          if (pathname === "/api/slides/export") throw new HttpError(501, "Google Slides export is not implemented; no deck was created");
+
+          const { storyboard, format = "vertical" } = body;
+          if (!["vertical", "landscape"].includes(format)) throw new HttpError(400, "Invalid video format");
+          try { validateStoryboard(storyboard); } catch { throw new HttpError(400, "Invalid storyboard"); }
+          let allowedMediaRoots;
+          try { allowedMediaRoots = scannedMedia.rootsFor(storyboard); } catch { throw new HttpError(400, "Scan the repository before using its media"); }
+          const renderer = new VideoRenderer({ outputDir, allowedMediaRoots });
+          try { for (const beat of storyboard.beats) renderer.mediaInput(beat.mediaAsset); }
+          catch { throw new HttpError(400, "Invalid or unavailable scanned media"); }
+          const audio = await new AudioSynthesizer({ outputDir }).synthesize(storyboard);
+          const result = await renderer.render(storyboard, audio.audioPath, format);
+          const name = path.basename(result.outputMp4);
+          completedOutputs.add(name);
+          while (completedOutputs.size > 100) completedOutputs.delete(completedOutputs.values().next().value);
+          return json(res, 200, { ok: true, result: { ...result, outputMp4: name, videoUrl: `/output/${name}` } });
+        } finally { busy = false; }
+      }
+      if (!["GET", "HEAD"].includes(req.method)) throw new HttpError(405, "Method not allowed");
+      const asset = PUBLIC_FILES.get(pathname);
+      if (asset) return serveFile(req, res, publicDir, asset[0], asset[1]);
+      if (pathname.startsWith("/output/")) {
+        if (!matchesSession(cookieSession(req.headers.cookie, cookieName), token) && !matchesSession(req.headers["x-launchcast-session"], token)) throw new HttpError(401, "Local Studio session required");
+        const name = pathname.slice("/output/".length);
+        if (!/^launch_reel_(vertical|landscape)_[a-f0-9-]{36}\.mp4$/.test(name) || !completedOutputs.has(name)) throw new HttpError(404, "Completed render not found in this session");
+        return serveFile(req, res, outputDir, name, "video/mp4");
+      }
+      throw new HttpError(404, "Route not found");
+    } catch (error) {
+      req.resume();
+      if (res.headersSent) return res.destroy();
+      res.setHeader("Connection", "close");
+      return json(res, error instanceof HttpError ? error.status : 500, { ok: false, error: error instanceof HttpError ? error.message : "Local Studio operation failed" });
+    }
+  });
+  server.requestTimeout = 15000;
+  server.headersTimeout = 10000;
+  server.keepAliveTimeout = 5000;
+  server.maxConnections = 16;
+  return server;
 }
 
-const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
-  const pathname = url.pathname;
+export function startStudio(options = {}) {
+  const port = Number(options.port ?? process.env.PORT ?? 3344);
+  if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("Invalid Studio port");
+  const scanRoots = options.scanRoots || (process.env.LAUNCHCAST_SCAN_ROOTS ? JSON.parse(process.env.LAUNCHCAST_SCAN_ROOTS) : [process.cwd()]);
+  const server = createStudioServer({ ...options, scanRoots });
+  server.listen(port, "127.0.0.1", () => console.log(`[LaunchCast] Local Studio: http://127.0.0.1:${server.address().port}`));
+  return server;
+}
 
-  // CORS preflight
-  if (req.method === "OPTIONS") {
-    res.writeHead(204, {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type"
-    });
-    return res.end();
-  }
-
-  // ─── API Routes ──────────────────────────────────────────────
-  if (req.method === "POST" && pathname === "/api/scan") {
-    try {
-      const { target } = await parseJsonBody(req);
-      if (!target) return sendJson(res, 400, { ok: false, error: "target is required" });
-
-      const scanner = new RepoScanner(target);
-      const repoData = await scanner.scan();
-      return sendJson(res, 200, { ok: true, repoData });
-    } catch (err) {
-      console.error(err);
-      return sendJson(res, 500, { ok: false, error: err.message });
-    }
-  }
-
-  if (req.method === "POST" && pathname === "/api/compile") {
-    try {
-      const { repoData, docId } = await parseJsonBody(req);
-      const workspace = new WorkspaceConnector();
-      const brief = await workspace.fetchLaunchBrief(docId);
-      const compiler = new ScriptCompiler();
-      const storyboard = compiler.compile(repoData || {}, brief);
-      return sendJson(res, 200, { ok: true, storyboard });
-    } catch (err) {
-      console.error(err);
-      return sendJson(res, 500, { ok: false, error: err.message });
-    }
-  }
-
-  if (req.method === "POST" && pathname === "/api/render") {
-    try {
-      const { storyboard, format = "vertical" } = await parseJsonBody(req);
-      if (!storyboard || !storyboard.beats) {
-        return sendJson(res, 400, { ok: false, error: "Invalid storyboard payload" });
-      }
-
-      console.log(`[Server] Rendering "${storyboard.title}" (${format})...`);
-      const synthesizer = new AudioSynthesizer({ outputDir: OUTPUT_DIR });
-      const audio = await synthesizer.synthesize(storyboard);
-
-      const renderer = new VideoRenderer({ outputDir: OUTPUT_DIR });
-      const result = await renderer.render(storyboard, audio.audioPath, format);
-
-      return sendJson(res, 200, {
-        ok: true,
-        result: {
-          ...result,
-          videoUrl: `/output/${path.basename(result.outputMp4)}`
-        }
-      });
-    } catch (err) {
-      console.error("[Server Render Error]:", err);
-      return sendJson(res, 500, { ok: false, error: err.message });
-    }
-  }
-
-  if (req.method === "POST" && pathname === "/api/slides/export") {
-    try {
-      const { storyboard } = await parseJsonBody(req);
-      const workspace = new WorkspaceConnector();
-      const deck = await workspace.exportToGoogleSlides(storyboard || {});
-      return sendJson(res, 200, { ok: true, deck });
-    } catch (err) {
-      console.error(err);
-      return sendJson(res, 500, { ok: false, error: err.message });
-    }
-  }
-
-  // ─── Static Files (Output MP4s & Web Assets) ─────────────────
-  let filePath;
-  if (pathname.startsWith("/output/")) {
-    filePath = path.join(OUTPUT_DIR, pathname.replace("/output/", ""));
-  } else {
-    filePath = path.join(PUBLIC_DIR, pathname === "/" ? "index.html" : pathname);
-  }
-
-  // Range support for HTML5 video seeking
-  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME_TYPES[ext] || "application/octet-stream";
-    const stat = fs.statSync(filePath);
-    const range = req.headers.range;
-
-    if (range && ext === ".mp4") {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : stat.size - 1;
-      const chunksize = end - start + 1;
-      const file = fs.createReadStream(filePath, { start, end });
-      res.writeHead(206, {
-        "Content-Range": `bytes ${start}-${end}/${stat.size}`,
-        "Accept-Ranges": "bytes",
-        "Content-Length": chunksize,
-        "Content-Type": contentType
-      });
-      return file.pipe(res);
-    }
-
-    res.writeHead(200, {
-      "Content-Type": contentType,
-      "Content-Length": stat.size
-    });
-    return fs.createReadStream(filePath).pipe(res);
-  }
-
-  res.writeHead(404, { "Content-Type": "text/plain" });
-  res.end("404 Not Found");
-});
-
-server.listen(PORT, () => {
-  console.log(`\n🎬 LaunchCast Web Studio running at: http://localhost:${PORT}`);
-  console.log(`   Interactive Studio UI: http://localhost:${PORT}`);
-  console.log(`   Zero-Dependency Native Runtime (Node.js 22)\n`);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) startStudio();

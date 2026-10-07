@@ -1,4 +1,12 @@
-import fs from "node:fs";
+export function isHttpsUrl(value) {
+  if (typeof value !== "string" || value !== value.trim()) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Handles broadcasting 30s launch videos and interactive Frame embeds directly to Farcaster.
@@ -25,7 +33,7 @@ export class FarcasterBroadcaster {
       ``,
       `"${hook}"`,
       ``,
-      `⚡ Compiled directly from codebase AST via @launchcast.`,
+      `Rendered with LaunchCast.`,
       repoUrl ? `🔗 Repo: ${repoUrl}` : "",
       videoUrl ? `📹 Watch: ${videoUrl}` : ""
     ].filter(Boolean).join("\n");
@@ -38,6 +46,10 @@ export class FarcasterBroadcaster {
    * @param {object} [options]
    */
   async broadcastCast(storyboard, videoUrl, options = {}) {
+    if (!isHttpsUrl(videoUrl)) return { success: false, status: "INVALID_VIDEO_URL" };
+    if (!this.apiKey || !this.signerUuid) {
+      return { success: false, status: "NOT_CONFIGURED", error: "Neynar credentials are required." };
+    }
     const text = this.formatCast(storyboard, videoUrl, options.repoUrl);
     const channel = options.channelId || this.channelId;
 
@@ -45,17 +57,6 @@ export class FarcasterBroadcaster {
     console.log(`--------------------------------------------------`);
     console.log(text);
     console.log(`--------------------------------------------------`);
-
-    if (!this.apiKey || !this.signerUuid) {
-      console.log(`ℹ️ [FarcasterBroadcaster] Simulated Mode (No NEYNAR_API_KEY or NEYNAR_SIGNER_UUID provided).`);
-      return {
-        status: "SIMULATED_SUCCESS",
-        channel,
-        castText: text,
-        embeds: [{ url: videoUrl }],
-        note: "To broadcast live, provide NEYNAR_API_KEY and NEYNAR_SIGNER_UUID in environment."
-      };
-    }
 
     try {
       const payload = {
@@ -71,21 +72,32 @@ export class FarcasterBroadcaster {
           "Content-Type": "application/json",
           "api_key": this.apiKey
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(15_000)
       });
 
+      if (!res.ok) {
+        const rejected = [400, 401, 403, 404, 422].includes(res.status);
+        return {
+          success: false, status: rejected ? "REJECTED" : "OUTCOME_UNKNOWN",
+          httpStatus: res.status, requiresReconciliation: !rejected
+        };
+      }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to post cast");
+      if (typeof data?.cast?.hash !== "string" || !/^0x[0-9a-fA-F]{40}$/.test(data.cast.hash)) {
+        return { success: false, status: "OUTCOME_UNKNOWN", requiresReconciliation: true };
+      }
 
-      console.log(`✅ [FarcasterBroadcaster] Cast published! Hash: ${data.cast?.hash}`);
+      console.log(`[FarcasterBroadcaster] Provider accepted cast: ${data.cast.hash}`);
       return {
-        status: "PUBLISHED",
+        success: true,
+        status: "ACCEPTED",
+        independentlyVerified: false,
         castHash: data.cast?.hash,
         url: `https://warpcast.com/~/conversations/${data.cast?.hash}`
       };
-    } catch (err) {
-      console.error(`❌ [FarcasterBroadcaster Error]:`, err.message);
-      return { status: "FAILED", error: err.message };
+    } catch {
+      return { success: false, status: "OUTCOME_UNKNOWN", requiresReconciliation: true };
     }
   }
 

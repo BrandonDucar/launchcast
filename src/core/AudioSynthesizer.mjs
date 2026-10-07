@@ -1,54 +1,29 @@
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { prepareOutputDir, outputDestination, validateStoryboard, requireArtifact, runProcess, removeJob } from "./ProcessSafety.mjs";
 
-/**
- * Handles voiceover generation, background music generation, and audio ducking.
- */
+/** Local synthetic backing track only. No narration or provider TTS is implemented. */
 export class AudioSynthesizer {
   constructor(options = {}) {
-    this.voice = options.voice || "en-US-Neural2-F";
-    this.outputDir = options.outputDir || path.join(process.cwd(), "output");
-    fs.mkdirSync(this.outputDir, { recursive: true });
+    this.outputDir = prepareOutputDir(options.outputDir || path.join(process.cwd(), "output"));
   }
 
-  /**
-   * Synthesizes audio tracks for the compiled storyboard.
-   * Produces a synchronized voice track and an ambient background music track with auto-ducking.
-   * @param {object} storyboard - The compiled 4-beat storyboard
-   */
   async synthesize(storyboard) {
-    const audioPath = path.join(this.outputDir, `audio_${Date.now()}.wav`);
-    console.log(`[AudioSynthesizer] Generating master soundtrack for 30s launch video...`);
-
-    // Concatenate full script
-    const fullScript = storyboard.beats.map(b => b.voiceoverScript).join(" ");
-    
-    // In live mode with TTS APIs:
-    // If ELEVENLABS_API_KEY, OPENAI_API_KEY, or GOOGLE_APPLICATION_CREDENTIALS exists, call TTS.
-    // Otherwise, generate a studio-grade cyber electronic backing track via FFmpeg synthesizer:
-    const duration = storyboard.totalDurationSec || 30;
-
-    // FFmpeg harmonic backing track with rhythmic pulse and ambient sheen
-    const ffmpegMusicCmd = [
-      `ffmpeg -y -f lavfi -t ${duration}`,
-      `-i "aevalsrc='0.08*sin(2*PI*55*t) + 0.04*sin(2*PI*110*t) + 0.02*sin(2*PI*220*t) + (between(mod(t,2),0,0.1)*0.08*(random(0)-0.5)) + (between(mod(t,0.5),0,0.05)*0.04*sin(2*PI*880*t))':s=44100"`,
-      `-af "lowpass=f=2400,volume=1.8"`,
-      `"${audioPath}"`
-    ].join(" ");
-
+    const duration = validateStoryboard(storyboard);
+    const audioPath = outputDestination(this.outputDir, path.join(this.outputDir, `audio_${randomUUID()}.wav`));
+    const job = fs.mkdtempSync(path.join(this.outputDir, ".render-"));
+    const music = "aevalsrc='0.08*sin(2*PI*55*t)+0.04*sin(2*PI*110*t)+0.02*sin(2*PI*220*t)+(between(mod(t,2),0,0.1)*0.08*(random(0)-0.5))+(between(mod(t,0.5),0,0.05)*0.04*sin(2*PI*880*t))':s=44100";
     try {
-      execSync(ffmpegMusicCmd, { stdio: "ignore" });
-      console.log(`✅ [AudioSynthesizer] Audio synthesized: ${audioPath}`);
-    } catch (err) {
-      console.error(`[AudioSynthesizer] Audio synthesis fallback error:`, err.message);
-    }
-
+      runProcess("ffmpeg", ["-nostdin", "-hide_banner", "-loglevel", "error", "-n", "-f", "lavfi", "-i", music,
+        "-t", String(duration), "-af", "lowpass=f=2400,volume=1.8", "-threads", "2", "audio.wav"], { cwd: job });
+      requireArtifact(path.join(job, "audio.wav"));
+      fs.copyFileSync(path.join(job, "audio.wav"), audioPath, fs.constants.COPYFILE_EXCL);
+      requireArtifact(audioPath);
+    } finally { removeJob(this.outputDir, job); }
     return {
-      audioPath,
-      fullScript,
-      durationSec: duration,
-      sampleRate: 44100
+      audioPath, fullScript: storyboard.beats.map(beat => beat.voiceoverScript).join(" "),
+      durationSec: duration, sampleRate: 44100, kind: "SYNTHETIC_BACKING_TRACK", narration: false
     };
   }
 }

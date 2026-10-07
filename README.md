@@ -8,6 +8,50 @@
 > **"Don't just ship code. Broadcast it."**  
 > LaunchCast turns entire code repositories and Google Workspace launch briefs into high-converting, 30-second kinetic launch reels in a single command.
 
+## Current implementation boundary
+
+Local rendering is implemented. Google Drive and YouTube uploads are not: their
+adapters return `success: false` and `NOT_IMPLEMENTED`, without provider IDs or
+public links. The Workspace/AST/Slides descriptions below include planned and
+prototype behavior, not verified production integrations. Do not expose the
+Web Studio to untrusted users: HTTP authentication, request limits, static-file
+containment and origin policy still need a separate hardening pass.
+
+Scanner/render subprocesses use argument arrays, bounded inputs and execution
+deadlines. Unattended remote scans accept only public GitHub HTTPS repository
+URLs, with ambient Git credentials/configuration disabled. For private or SSH
+repositories, clone through your trusted workflow first and pass the local path.
+Local metadata reads are bounded; rendering accepts raster media only within
+`allowedMediaRoots` (the scanned repository in the full pipeline, otherwise the
+working directory). Audio inputs default to the output directory. Text is literal,
+not executable FFmpeg filter syntax. Output files cannot replace existing files.
+These checks are not an OS sandbox, disk quota, or public multi-tenant boundary.
+The single-user Studio keeps a bounded in-memory list of discovered media paths
+and passes their scan roots to rendering; rescan after a restart or eviction.
+Remote clone checkout bytes and cumulative cache size are not yet quota-limited.
+
+The audio generator produces a **synthetic backing track**, not spoken narration.
+It now fails when FFmpeg fails or produces no file. Storyboards must contain 1-8
+beats, each 0.1-30 seconds, with a matching total of at most 120 seconds.
+
+`--publish` requests the Google upload path, not Farcaster. `--farcaster` is a
+separate explicit request and currently remains blocked because no implemented
+upload path supplies an accepted public video. It does not implicitly upload to
+Google or change a README. Requested but incomplete distribution exits nonzero
+after preserving the local render. A future upload adapter must provide a real
+provider ID, matching provider URL, and confirmed `publiclyAccessible: true`;
+absent, failed, private, or mismatched results cannot be cast or embedded.
+
+The Neynar adapter reports `ACCEPTED` only for a response with a valid cast hash.
+It does not claim independent public verification. Ambiguous outcomes require
+reconciliation before retry, and missing credentials are `NOT_CONFIGURED`, not
+simulated success. No live posting is exercised by the tests.
+
+Run the offline regression suite with `npm test` (Node.js built-in test runner).
+For an opt-in, real local FFmpeg/ffprobe check with synthetic inputs, run
+`node test/render-canary.mjs <existing-evidence-directory>`. It retains two
+one-second MP4s and audio in a uniquely named subdirectory; it never publishes.
+
 ---
 
 ## 💡 The Core Problem
@@ -98,15 +142,41 @@ node cli.mjs https://github.com/user/my-repo --format landscape
 # Export to Google Slides for collaborative team editing
 node cli.mjs ../my-cool-project --slides
 
-# Full autonomous distribution (Drive + YouTube + README PR)
+# Request distribution (currently reports NOT_IMPLEMENTED and exits nonzero)
 node cli.mjs ../my-cool-project --publish
 ```
 
 ### 3. Launch the Interactive Web Studio
 ```bash
 node server.mjs
-# Open http://localhost:3344 in your browser
+# Open http://127.0.0.1:3344 in your browser
 ```
+
+Studio is a **local, single-user tool**, not a public web service. It binds only
+to `127.0.0.1`, rejects foreign Host/Origin requests, and establishes a temporary
+same-origin browser session before work or video downloads. Restarting Studio
+invalidates that session. Requests are limited to 64 KiB (4 MiB for full scan
+metadata sent to compile) and one active operation.
+
+By default, Studio scans only directories inside the directory it was started
+from. The repository path `.` selects that directory. To allow other local
+repositories, configure their roots explicitly before starting it (PowerShell):
+
+```powershell
+$env:LAUNCHCAST_SCAN_ROOTS = '["C:/repos/project-one","C:/repos/project-two"]'
+node server.mjs
+```
+
+Remote GitHub cloning remains available in the trusted CLI, but is disabled in
+Studio. Only completed MP4s from the current Studio process are served; older
+outputs stay on disk. WAVs, intermediate render files and other files are not
+download routes. Google Docs import and Slides export return `501` in Studio;
+they do not create or read real Google artifacts. The library/CLI Workspace
+adapter still contains prototypes and must not be treated as provider evidence.
+
+This browser boundary is not protection against another program running as the
+same OS user. FFmpeg is synchronous, and aggregate disk/decoder quotas are not
+implemented. Do not put Studio behind a public proxy or expose it to a network.
 
 ---
 
@@ -133,8 +203,8 @@ Usage:
 Options:
   --format          "vertical" (1080x1920) or "landscape" (1920x1080)
   --slides          Export storyboard directly to Google Slides for team editing
-  --publish         Auto-upload to Google Drive, YouTube Shorts, and inject into README
-  --farcaster       Broadcast launch cast directly to Farcaster via Neynar
+  --publish         Request Google uploads (currently unavailable); not Farcaster
+  --farcaster       Request Farcaster; blocked without an accepted public upload
   --channel <name>  Farcaster channel (e.g. dev, launch, build, base; default: dev)
   --doc <docId>     Optional Google Doc ID containing PRD / launch copy
 ```
