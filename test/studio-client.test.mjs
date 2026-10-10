@@ -69,3 +69,21 @@ test("expired local sessions clear without automatically retrying work", async (
   assert.equal(app.calls[2].url, "/api/session");
   assert.equal(app.calls[3].options.headers["X-LaunchCast-Session"], "new-synthetic");
 });
+
+test("Studio client switches to recipe mode and loads available recipes", async () => {
+  const app = browserFixture();
+  app.replies.push({
+    status: 200,
+    data: {
+      ok: true,
+      recipes: [
+        { name: "coastal-freeze-pineapple-reel", format: "vertical", durationSec: 15, beats: [] }
+      ]
+    }
+  });
+  await app.click("tab-recipe-mode");
+  assert.equal(app.calls.length, 1);
+  assert.equal(app.calls[0].url, "/api/recipes");
+  assert.ok(app.elements.get("toast-container").children.some(toast => toast.textContent.includes("Loaded 1 creative recipes")));
+});
+

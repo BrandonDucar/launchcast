@@ -117,7 +117,7 @@ test("all mutation routes reject missing, invalid and previous-process sessions"
   const app = await studio(t);
   const old = await app.session();
   app.mod.createStudioServer({ publicDir: app.publicDir, outputDir: app.outputDir, scanRoots: [app.repo] });
-  for (const url of ["/api/scan", "/api/compile", "/api/render", "/api/slides/export"]) {
+  for (const url of ["/api/scan", "/api/compile", "/api/render", "/api/slides/export", "/api/recipe/compile"]) {
     for (const headers of [{}, old, { "x-launchcast-session": "x".repeat(64) }]) {
       assert.equal((await app.request({ method: "POST", url, headers, body: {} })).status, 401);
     }
@@ -316,4 +316,50 @@ test("busy admission bounds queued work and failures redact private errors", asy
   assert.equal(response.status, 500);
   assert.ok(!/SECRET|private/.test(response.text));
   assert.equal((await app.request({ method: "POST", url: "/api/compile", headers, body: { repoData: {} } })).status, 200);
+});
+
+test("GET /api/recipes lists validated recipes from docs/recipes", async t => {
+  const app = await studio(t);
+  const response = await app.request({ url: "/api/recipes" });
+  assert.equal(response.status, 200);
+  assert.equal(response.data.ok, true);
+  assert.ok(Array.isArray(response.data.recipes));
+  assert.ok(response.data.recipes.some(r => r.name === "coastal-freeze-pineapple-reel"));
+});
+
+test("POST /api/recipe/compile compiles storyboard and enables render without rescanning", async t => {
+  const app = await studio(t);
+  const headers = await app.session();
+
+  const asset1 = path.join(app.repo, "pineapple.png");
+  const asset2 = path.join(app.repo, "chamber.png");
+  const asset3 = path.join(app.repo, "chips.png");
+  const pngHeader = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13]);
+  for (const f of [asset1, asset2, asset3]) fs.writeFileSync(f, pngHeader);
+
+  const mediaMap = {
+    "pineapple-prep": asset1,
+    "freeze-drying": asset2,
+    "pineapple-chips": asset3
+  };
+
+  const compileRes = await app.request({
+    method: "POST",
+    url: "/api/recipe/compile",
+    headers,
+    body: { recipeName: "coastal-freeze-pineapple-reel", mediaMap }
+  });
+
+  assert.equal(compileRes.status, 200);
+  assert.equal(compileRes.data.ok, true);
+  assert.equal(compileRes.data.storyboard.beats.length, 3);
+  assert.equal(compileRes.data.storyboard.beats[0].mediaAsset, asset1);
+
+  const failRes = await app.request({
+    method: "POST",
+    url: "/api/recipe/compile",
+    headers,
+    body: { recipeName: "coastal-freeze-pineapple-reel", mediaMap: {} }
+  });
+  assert.equal(failRes.status, 400);
 });

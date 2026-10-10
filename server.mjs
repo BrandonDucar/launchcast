@@ -1,16 +1,18 @@
 import http from "node:http";
 import path from "node:path";
 import fs from "node:fs";
+import os from "node:os";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { RepoScanner, ScriptCompiler, AudioSynthesizer, VideoRenderer, FilmCraftRenderer } from "./src/index.mjs";
 import { StudioMediaScope } from "./src/core/StudioMediaScope.mjs";
-import { validateStoryboard, prepareOutputDir } from "./src/core/ProcessSafety.mjs";
+import { validateStoryboard, prepareOutputDir, isWithin } from "./src/core/ProcessSafety.mjs";
+import { validateRecipe, compileRecipeStoryboard } from "./src/core/CreativeRecipe.mjs";
 import { HttpError, admitLocalRequest, requestPath, matchesSession, cookieSession, parseJsonBody, localScanTarget, validateRepoData, serveFile } from "./src/core/StudioHttp.mjs";
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_FILES = new Map([["/", ["index.html", "text/html; charset=utf-8"]], ["/index.html", ["index.html", "text/html; charset=utf-8"]], ["/app.js", ["app.js", "application/javascript; charset=utf-8"]], ["/style.css", ["style.css", "text/css; charset=utf-8"]]]);
-const POST_ROUTES = new Set(["/api/scan", "/api/compile", "/api/render", "/api/slides/export"]);
+const POST_ROUTES = new Set(["/api/scan", "/api/compile", "/api/render", "/api/slides/export", "/api/recipe/compile"]);
 
 function json(res, status, data) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
@@ -48,6 +50,36 @@ export function createStudioServer(options = {}) {
         res.setHeader("Set-Cookie", `${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/`);
         return json(res, 200, { ok: true, token, mode: "LOCAL_SINGLE_USER" });
       }
+      if (req.method === "GET" && pathname === "/api/recipes") {
+        const recipeDirs = new Set([path.join(ROOT, "docs", "recipes")]);
+        for (const root of scanRoots) {
+          const candidate = path.join(root, "docs", "recipes");
+          if (fs.existsSync(candidate)) recipeDirs.add(candidate);
+        }
+        const recipes = [];
+        const seenNames = new Set();
+        for (const dir of recipeDirs) {
+          if (!fs.existsSync(dir)) continue;
+          let entries;
+          try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+          for (const entry of entries) {
+            if (entry.isFile() && entry.name.endsWith(".recipe.json")) {
+              try {
+                const raw = fs.readFileSync(path.join(dir, entry.name), "utf8");
+                const parsed = JSON.parse(raw);
+                validateRecipe(parsed);
+                if (!seenNames.has(parsed.name)) {
+                  seenNames.add(parsed.name);
+                  recipes.push(parsed);
+                }
+              } catch {
+                // skip malformed or invalid files
+              }
+            }
+          }
+        }
+        return json(res, 200, { ok: true, recipes });
+      }
       if (req.method === "POST") {
         if (!POST_ROUTES.has(pathname)) throw new HttpError(404, "Route not found");
         if (!matchesSession(req.headers["x-launchcast-session"], token)) throw new HttpError(401, "Reload Studio to establish a local session");
@@ -55,7 +87,7 @@ export function createStudioServer(options = {}) {
         busy = true;
         try {
           // Full scan metadata can include 100 multibyte paths plus package metadata.
-          const body = await parseJsonBody(req, pathname === "/api/compile" ? 4 * 1024 * 1024 : 64 * 1024);
+          const body = await parseJsonBody(req, (pathname === "/api/compile" || pathname === "/api/recipe/compile") ? 4 * 1024 * 1024 : 64 * 1024);
           if (pathname === "/api/scan") {
             const scanner = new RepoScanner(localScanTarget(body.target, scanRoots));
             const repoData = await scanner.scan();
@@ -67,6 +99,44 @@ export function createStudioServer(options = {}) {
             const storyboard = new ScriptCompiler().compile(validateRepoData(body.repoData));
             return json(res, 200, { ok: true, storyboard });
           }
+          if (pathname === "/api/recipe/compile") {
+            let recipe = body.recipe;
+            if (!recipe && body.recipeName) {
+              if (typeof body.recipeName !== "string" || !/^[a-zA-Z0-9_-]{1,64}$/.test(body.recipeName)) {
+                throw new HttpError(400, "Invalid recipe name");
+              }
+              const candidatePaths = [
+                path.join(ROOT, "docs", "recipes", `${body.recipeName}.recipe.json`),
+                ...scanRoots.map(r => path.join(r, "docs", "recipes", `${body.recipeName}.recipe.json`))
+              ];
+              const recipeFile = candidatePaths.find(p => fs.existsSync(p));
+              if (!recipeFile) throw new HttpError(404, "Recipe not found");
+              try {
+                recipe = JSON.parse(fs.readFileSync(recipeFile, "utf8"));
+              } catch {
+                throw new HttpError(500, "Failed to load recipe file");
+              }
+            }
+            if (!recipe) throw new HttpError(400, "Recipe or recipeName required");
+            try {
+              validateRecipe(recipe);
+            } catch {
+              throw new HttpError(400, "Invalid recipe");
+            }
+            let storyboard;
+            try {
+              storyboard = compileRecipeStoryboard(recipe, body.mediaMap, scanRoots);
+            } catch (err) {
+              throw new HttpError(400, err.message || "Failed to compile recipe storyboard");
+            }
+            for (const beat of storyboard.beats) {
+              if (beat.mediaAsset) {
+                const matchedRoot = scanRoots.find(r => isWithin(r, beat.mediaAsset)) || path.dirname(beat.mediaAsset);
+                scannedMedia.register(matchedRoot, [{ path: beat.mediaAsset }]);
+              }
+            }
+            return json(res, 200, { ok: true, recipe, storyboard });
+          }
           if (pathname === "/api/slides/export") throw new HttpError(501, "Google Slides export is not implemented; no deck was created");
 
           const { storyboard, format = "vertical", renderer: requestedRenderer = "ffmpeg" } = body;
@@ -76,11 +146,13 @@ export function createStudioServer(options = {}) {
           let allowedMediaRoots;
           try { allowedMediaRoots = scannedMedia.rootsFor(storyboard); } catch { throw new HttpError(400, "Scan the repository before using its media"); }
           const RendererClass = requestedRenderer === "filmcraft" ? FilmCraftRenderer : VideoRenderer;
-          const renderer = new RendererClass({ outputDir, allowedMediaRoots });
+          const defaultFilmcraftCli = path.join(os.homedir(), ".dreamnet", "tools", "filmcraft", "0.5.0", "portable", "filmcraft-0.5.0-windows-x64-portable", "filmcraft-cli.exe");
+          const filmcraftCli = options.filmcraftCli || process.env.FILMCRAFT_CLI_PATH || (fs.existsSync(defaultFilmcraftCli) ? defaultFilmcraftCli : undefined);
+          const renderer = new RendererClass({ outputDir, allowedMediaRoots, filmcraftCli });
           try { for (const beat of storyboard.beats) renderer.mediaInput(beat.mediaAsset); }
           catch { throw new HttpError(400, "Invalid or unavailable scanned media"); }
           const audio = await new AudioSynthesizer({ outputDir }).synthesize(storyboard);
-          const result = await renderer.render(storyboard, audio.audioPath, format);
+          const result = await renderer.render(storyboard, audio.audioPath, format, { allowFallback: true, preserveProject: true });
           const name = path.basename(result.outputMp4);
           completedOutputs.add(name);
           while (completedOutputs.size > 100) completedOutputs.delete(completedOutputs.values().next().value);

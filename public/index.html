@@ -22,12 +22,26 @@
       </div>
       <div class="header-status">
         <span class="status-indicator">● READY</span>
-        <span class="engine-badge">V8 / FFmpeg 60fps Native</span>
+        <span class="engine-badge">V8 / FFmpeg + FilmCraft 0.5.0 Native</span>
       </div>
     </header>
 
-    <!-- Ingestion Hero -->
-    <section class="ingestion-card">
+    <!-- Studio Mode Switcher -->
+    <div class="mode-tabs-bar">
+      <button class="mode-tab active" id="tab-codebase-mode" data-mode="codebase">
+        <span class="tab-icon">📁</span>
+        <span class="tab-label">Codebase Mode</span>
+        <span class="tab-pill">AST Scanner</span>
+      </button>
+      <button class="mode-tab" id="tab-recipe-mode" data-mode="recipe">
+        <span class="tab-icon">✨</span>
+        <span class="tab-label">Creative Recipe Mode</span>
+        <span class="tab-pill">Brand Reels</span>
+      </button>
+    </div>
+
+    <!-- Codebase Ingestion Hero -->
+    <section class="ingestion-card" id="section-codebase-mode">
       <div class="section-title">1. Multi-Source Ingestion & Analysis</div>
       <div class="input-grid">
         <div class="input-field">
@@ -49,6 +63,55 @@
       </div>
     </section>
 
+    <!-- Creative Recipe Ingestion Card -->
+    <section class="ingestion-card" id="section-recipe-mode" style="display: none;">
+      <div class="section-title-row">
+        <div>
+          <div class="section-title">1. Creative Recipe Blueprint & Asset Mapping</div>
+          <p class="section-sub">Declarative brand formula • Role-based asset mapping • FilmCraft 0.5.0 / FFmpeg compilation</p>
+        </div>
+        <div class="recipe-selector-group">
+          <label for="recipe-selector" class="sr-only">Select Recipe</label>
+          <select id="recipe-selector" class="recipe-dropdown">
+            <option value="" disabled selected>Loading recipes...</option>
+          </select>
+          <button class="btn btn-outline btn-sm" id="btn-refresh-recipes" title="Reload available recipes">
+            <span>🔄</span> Refresh
+          </button>
+        </div>
+      </div>
+
+      <!-- Recipe Overview Card -->
+      <div class="recipe-meta-box" id="recipe-meta-box">
+        <div class="recipe-meta-header">
+          <span class="recipe-name-badge" id="recipe-name-badge">coastal-freeze-pineapple-reel</span>
+          <div class="recipe-tags" id="recipe-tags">
+            <span class="tag-badge" id="recipe-tag-format">📱 9:16 Vertical</span>
+            <span class="tag-badge" id="recipe-tag-duration">⏱️ 15.0s</span>
+            <span class="tag-badge" id="recipe-tag-beats">🎬 3 Beats</span>
+          </div>
+        </div>
+        <div class="recipe-desc" id="recipe-desc">15-second vertical product spotlight for Coastal Freeze Golden Pineapple Chips.</div>
+      </div>
+
+      <!-- Dynamic Role Mapping Cards -->
+      <div class="recipe-beats-container">
+        <div class="recipe-beats-title">Beat Role Asset Mappings:</div>
+        <div class="recipe-mapping-grid" id="recipe-mapping-grid">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+      <div class="ingestion-actions">
+        <button class="btn btn-primary" id="btn-compile-recipe">
+          <span>⚡</span> Compile Recipe Storyboard
+        </button>
+        <button class="btn btn-outline" id="btn-load-mapping">
+          <span>📋</span> Load Example Mapping
+        </button>
+      </div>
+    </section>
+
     <!-- Storyboard Canvas -->
     <section class="storyboard-section" id="storyboard-section">
       <div class="section-header-row">
@@ -56,9 +119,15 @@
           <h2 class="section-title" id="storyboard-title">2. 4-Beat Broadcast Storyboard (30 Seconds)</h2>
           <p class="section-sub" id="storyboard-pacing">Pacing: 2.4 words/second • Strict 4-beat kinetic formula • Zero fluff</p>
         </div>
-        <div class="format-toggle">
-          <button class="toggle-btn active" data-format="vertical">📱 9:16 Vertical (Shorts/TikTok)</button>
-          <button class="toggle-btn" data-format="landscape">🖥️ 16:9 Landscape (YouTube/X)</button>
+        <div class="toggles-group">
+          <div class="renderer-toggle">
+            <button class="renderer-btn active" data-renderer="filmcraft">🎞️ FilmCraft 0.5.0</button>
+            <button class="renderer-btn" data-renderer="ffmpeg">⚡ Native FFmpeg</button>
+          </div>
+          <div class="format-toggle">
+            <button class="toggle-btn active" data-format="vertical">📱 9:16 Vertical (Shorts/TikTok)</button>
+            <button class="toggle-btn" data-format="landscape">🖥️ 16:9 Landscape (YouTube/X)</button>
+          </div>
         </div>
       </div>
 
@@ -163,6 +232,7 @@
         <div class="output-details-card">
           <h3 id="output-video-name">launch_reel_vertical.mp4</h3>
           <div class="output-stat-row">
+            <div class="stat-box"><span class="stat-val" id="out-stat-engine">FilmCraft 0.5.0</span><span class="stat-lbl">Engine</span></div>
             <div class="stat-box"><span class="stat-val" id="out-stat-res">1080x1920</span><span class="stat-lbl">Resolution</span></div>
             <div class="stat-box"><span class="stat-val" id="out-stat-dur">30.0s</span><span class="stat-lbl">Duration</span></div>
             <div class="stat-box"><span class="stat-val" id="out-stat-size">2.4 MB</span><span class="stat-lbl">File Size</span></div>

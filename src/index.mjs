@@ -7,6 +7,7 @@ import { FilmCraftRenderer } from "./core/FilmCraftRenderer.mjs";
 import { DistributionEngine, distributeVideo } from "./core/DistributionEngine.mjs";
 import { FarcasterBroadcaster } from "./core/FarcasterBroadcaster.mjs";
 import { WarpeeEvaluator } from "./core/WarpeeEvaluator.mjs";
+import { validateRecipe, compileRecipeStoryboard, previewRecipe } from "./core/CreativeRecipe.mjs";
 
 export {
   RepoScanner,
@@ -17,7 +18,10 @@ export {
   FilmCraftRenderer,
   DistributionEngine,
   FarcasterBroadcaster,
-  WarpeeEvaluator
+  WarpeeEvaluator,
+  validateRecipe,
+  compileRecipeStoryboard,
+  previewRecipe
 };
 
 /**
