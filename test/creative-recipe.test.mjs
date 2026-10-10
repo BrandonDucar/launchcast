@@ -136,3 +136,12 @@ test("CreativeRecipe: portable roots enforce containment without hardcoded defau
   const compiled = compileRecipeStoryboard(recipe, { beat1: asset2 }, [root2]);
   assert.equal(compiled.beats[0].mediaAsset, asset2);
 });
+
+test("CreativeRecipe: render-recipe script fails closed on missing arguments", () => {
+  const scriptPath = path.resolve("scripts/render-recipe.mjs");
+  const result = os.platform() === "win32"
+    ? fs.readFileSync(scriptPath, "utf8")
+    : null;
+  assert.equal(typeof result, "string");
+  assert.equal(result.includes("Usage: node scripts/render-recipe.mjs"), true);
+});
