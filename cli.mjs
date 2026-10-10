@@ -76,8 +76,9 @@ async function main() {
   const publish = args.includes("--publish");
   const farcaster = args.includes("--farcaster");
   const channelId = args.find(a => a.startsWith("--channel="))?.split("=")[1] || "dev";
+  const renderer = args.includes("--filmcraft") ? "filmcraft" : (args.find(a => a.startsWith("--renderer="))?.split("=")[1] || "ffmpeg");
 
-  const result = await runLaunchCast(target, { format, exportSlides, publish, farcaster, channelId });
+  const result = await runLaunchCast(target, { format, exportSlides, publish, farcaster, channelId, renderer });
   if ((publish || farcaster) && result.distributionResult.success !== true) {
     console.error("[LaunchCast] Requested distribution did not complete. The rendered video remains local.");
     process.exitCode = 1;

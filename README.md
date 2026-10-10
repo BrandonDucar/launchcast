@@ -14,6 +14,16 @@ Start with a local video you can inspect and edit. LaunchCast does not currently
 deliver autonomous social uploads, spoken narration, or production Google
 Workspace editing.
 
+## Creative Tools
+
+PhotoCraft image preparation, FilmCraft 0.5.0 local rendering, and a draft-only
+Postiz payload bridge are available. Start with the [Windows laptop setup and
+photo-to-reel guide](docs/FILMCRAFT_WINDOWS.md) or the
+[creative pipeline contract](docs/CREATIVE_PIPELINE.md). Editors are installed
+separately; no cloud subscription, media, or login is bundled in this repository.
+FilmCraft exports are probed and fully decoded before success; editable bundles
+retain their media. They still require visual review before commercial use.
+
 ## Implementation Status
 
 | Surface | Current boundary |
@@ -21,6 +31,8 @@ Workspace editing.
 | Repository scanner | Local paths and public GitHub HTTPS URLs through the CLI; bounded metadata reads |
 | Storyboard compiler | Structured beat sequence; generated claims still need human review |
 | Local rendering | FFmpeg/ffprobe with raster assets and a synthetic backing track, not voiceover |
+| FilmCraft | Optional 0.5.0 renderer and portable editable projects; separate installation |
+| PhotoCraft / Postiz | Local image processing and actual-upload-backed draft payloads; no autonomous posting |
 | Web Studio | Local single-user browser UI on `127.0.0.1:3344` |
 | Google Docs / Slides | Prototype library adapters; Studio returns `501`, not real Google artifacts |
 | Drive / YouTube upload | Not implemented; no fabricated provider IDs or public links |

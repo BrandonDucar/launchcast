@@ -2,6 +2,9 @@ node_modules/
 .oneshot_cache/
 .launchcast_cache/
 output/.render-*/
+output/*.mp4
+output/*.fcproj
+output/*.receipt.json
 .env
 output/*.wav
 output/*.txt

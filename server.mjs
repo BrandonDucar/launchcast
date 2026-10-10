@@ -3,7 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { RepoScanner, ScriptCompiler, AudioSynthesizer, VideoRenderer } from "./src/index.mjs";
+import { RepoScanner, ScriptCompiler, AudioSynthesizer, VideoRenderer, FilmCraftRenderer } from "./src/index.mjs";
 import { StudioMediaScope } from "./src/core/StudioMediaScope.mjs";
 import { validateStoryboard, prepareOutputDir } from "./src/core/ProcessSafety.mjs";
 import { HttpError, admitLocalRequest, requestPath, matchesSession, cookieSession, parseJsonBody, localScanTarget, validateRepoData, serveFile } from "./src/core/StudioHttp.mjs";
@@ -69,12 +69,14 @@ export function createStudioServer(options = {}) {
           }
           if (pathname === "/api/slides/export") throw new HttpError(501, "Google Slides export is not implemented; no deck was created");
 
-          const { storyboard, format = "vertical" } = body;
+          const { storyboard, format = "vertical", renderer: requestedRenderer = "ffmpeg" } = body;
+          if (!["ffmpeg", "filmcraft"].includes(requestedRenderer)) throw new HttpError(400, "Invalid renderer");
           if (!["vertical", "landscape"].includes(format)) throw new HttpError(400, "Invalid video format");
           try { validateStoryboard(storyboard); } catch { throw new HttpError(400, "Invalid storyboard"); }
           let allowedMediaRoots;
           try { allowedMediaRoots = scannedMedia.rootsFor(storyboard); } catch { throw new HttpError(400, "Scan the repository before using its media"); }
-          const renderer = new VideoRenderer({ outputDir, allowedMediaRoots });
+          const RendererClass = requestedRenderer === "filmcraft" ? FilmCraftRenderer : VideoRenderer;
+          const renderer = new RendererClass({ outputDir, allowedMediaRoots });
           try { for (const beat of storyboard.beats) renderer.mediaInput(beat.mediaAsset); }
           catch { throw new HttpError(400, "Invalid or unavailable scanned media"); }
           const audio = await new AudioSynthesizer({ outputDir }).synthesize(storyboard);
