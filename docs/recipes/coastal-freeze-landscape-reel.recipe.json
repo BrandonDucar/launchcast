@@ -1,0 +1,51 @@
+{
+  "$schema": "launchcast.creative-recipe.v1",
+  "name": "coastal-freeze-landscape-reel",
+  "description": "Standard 15-second 16:9 landscape brand showcase for desktop product pages and video embeds.",
+  "format": "landscape",
+  "resolution": {
+    "width": 1920,
+    "height": 1080
+  },
+  "fps": 30,
+  "durationSec": 15,
+  "audio": {
+    "kind": "SYNTHETIC_BACKING_TRACK",
+    "narration": false,
+    "sampleRate": 44100,
+    "channels": 2
+  },
+  "beats": [
+    {
+      "index": 1,
+      "role": "kitchen-prep",
+      "durationSec": 5,
+      "headline": "Artisan Kitchen Prep",
+      "caption": "Hand-prepped fruit at Coastal Freeze Co.",
+      "visualDescription": "Raw fruit preparation on cutting board or stainless steel kitchen surface."
+    },
+    {
+      "index": 2,
+      "role": "freeze-drying",
+      "durationSec": 5,
+      "headline": "Chamber Sublimation",
+      "caption": "Pure botanical freeze-drying in Jupiter, Florida.",
+      "visualDescription": "Commercial freeze-dryer chamber or stainless steel freeze-drying tray."
+    },
+    {
+      "index": 3,
+      "role": "crisp-slices",
+      "durationSec": 5,
+      "headline": "Crunch & Texture",
+      "caption": "Light, airy, and handcrafted with zero additives.",
+      "visualDescription": "Finished freeze-dried fruit chips or packaged small-batch snacks."
+    }
+  ],
+  "renderSettings": {
+    "clipScale": "scaleToFrameSize",
+    "audioCrossfadeSec": 0.5,
+    "codec": "libx264",
+    "audioCodec": "aac",
+    "pixFmt": "yuv420p"
+  }
+}

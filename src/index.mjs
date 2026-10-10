@@ -6,6 +6,7 @@ import { VideoRenderer } from "./core/VideoRenderer.mjs";
 import { FilmCraftRenderer } from "./core/FilmCraftRenderer.mjs";
 import { DistributionEngine, distributeVideo } from "./core/DistributionEngine.mjs";
 import { FarcasterBroadcaster } from "./core/FarcasterBroadcaster.mjs";
+import { WarpeeEvaluator } from "./core/WarpeeEvaluator.mjs";
 
 export {
   RepoScanner,
@@ -15,7 +16,8 @@ export {
   VideoRenderer,
   FilmCraftRenderer,
   DistributionEngine,
-  FarcasterBroadcaster
+  FarcasterBroadcaster,
+  WarpeeEvaluator
 };
 
 /**

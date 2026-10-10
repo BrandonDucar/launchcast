@@ -1,0 +1,51 @@
+{
+  "$schema": "launchcast.creative-recipe.v1",
+  "name": "coastal-freeze-pineapple-reel",
+  "description": "15-second vertical product spotlight for Coastal Freeze Golden Pineapple Chips.",
+  "format": "vertical",
+  "resolution": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "durationSec": 15,
+  "audio": {
+    "kind": "SYNTHETIC_BACKING_TRACK",
+    "narration": false,
+    "sampleRate": 44100,
+    "channels": 2
+  },
+  "beats": [
+    {
+      "index": 1,
+      "role": "pineapple-prep",
+      "durationSec": 5,
+      "headline": "Golden Pineapple",
+      "caption": "Hand-sliced golden pineapple prepped for sublimation.",
+      "visualDescription": "Sliced golden tropical pineapple on cutting board or prep surface."
+    },
+    {
+      "index": 2,
+      "role": "freeze-drying",
+      "durationSec": 5,
+      "headline": "Sublimation Cycle",
+      "caption": "Slow moisture removal in Jupiter, Florida.",
+      "visualDescription": "Freeze-dryer chamber or stainless steel tray with pineapple slices."
+    },
+    {
+      "index": 3,
+      "role": "pineapple-chips",
+      "durationSec": 5,
+      "headline": "Sweet-Tart Crunch",
+      "caption": "Intense tropical honeycomb crunch with zero additives.",
+      "visualDescription": "Crisp freeze-dried pineapple chips or packaged finished product."
+    }
+  ],
+  "renderSettings": {
+    "clipScale": "scaleToFrameSize",
+    "audioCrossfadeSec": 0.5,
+    "codec": "libx264",
+    "audioCodec": "aac",
+    "pixFmt": "yuv420p"
+  }
+}
