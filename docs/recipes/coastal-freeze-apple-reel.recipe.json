@@ -1,0 +1,51 @@
+{
+  "$schema": "launchcast.creative-recipe.v1",
+  "name": "coastal-freeze-apple-reel",
+  "description": "15-second vertical product spotlight for Coastal Freeze Honey Orchard Apple Chips & Appletini Craft Garnish.",
+  "format": "vertical",
+  "resolution": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "durationSec": 15,
+  "audio": {
+    "kind": "SYNTHETIC_BACKING_TRACK",
+    "narration": false,
+    "sampleRate": 44100,
+    "channels": 2
+  },
+  "beats": [
+    {
+      "index": 1,
+      "role": "orchard-apples",
+      "durationSec": 5,
+      "headline": "Orchard Apples",
+      "caption": "Fresh whole orchard apples hand-sliced for sublimation.",
+      "visualDescription": "Whole red-blushed orchard apples on cutting board prep station."
+    },
+    {
+      "index": 2,
+      "role": "chamber-mesh-tray",
+      "durationSec": 5,
+      "headline": "Chamber Sublimation",
+      "caption": "Stainless wire mesh allows 360-degree vapor flow in Jupiter, Florida.",
+      "visualDescription": "Harvest Right stainless wire mesh tray loaded with thin-sliced apple wheels."
+    },
+    {
+      "index": 3,
+      "role": "appletini-garnish",
+      "durationSec": 5,
+      "headline": "Signature Garnish",
+      "caption": "Crisp Honey Orchard Apple Chips crafted for artisan Appletinis.",
+      "visualDescription": "Crisp freeze-dried apple wheel cocktail garnish absorbing spirit aromatics without sogginess."
+    }
+  ],
+  "renderSettings": {
+    "clipScale": "scaleToFrameSize",
+    "audioCrossfadeSec": 0.5,
+    "codec": "libx264",
+    "audioCodec": "aac",
+    "pixFmt": "yuv420p"
+  }
+}
