@@ -2,13 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import {
-  boundedNumber, validateBeat, validateStoryboard, prepareOutputDir, outputDestination,
+  boundedNumber, validateStoryboard, prepareOutputDir, outputDestination,
   regularInput, requireArtifact, runProcess, removeJob
 } from "./ProcessSafety.mjs";
 import { VideoRenderer } from "./VideoRenderer.mjs";
 
 const TICKS_PER_SEC = 254016000000;
-const DEFAULT_FILMCRAFT_CLI = "C:/Users/brand/.dreamnet/tools/filmcraft/0.5.0/portable/filmcraft-0.5.0-windows-x64-portable/filmcraft-cli.exe";
+const DEFAULT_FILMCRAFT_CLI = "";
 
 export class FilmCraftRenderer {
   constructor(options = {}) {
@@ -56,7 +56,7 @@ export class FilmCraftRenderer {
 
     // Check if FilmCraft CLI is available
     if (!this.isFilmCraftAvailable()) {
-      if (options.allowFallback !== false) {
+      if (options.allowFallback === true) {
         const fallbackResult = await this.fallbackRenderer.render(storyboard, audioPath, format);
         return {
           ...fallbackResult,
@@ -67,11 +67,13 @@ export class FilmCraftRenderer {
       throw new Error("FilmCraft CLI executable not found");
     }
 
+    const mediaInputs = storyboard.beats.map(beat => this.mediaInput(beat.mediaAsset));
+    if (mediaInputs.some(media => !media)) throw new Error("FilmCraft requires a supported raster for every beat");
+    const version = String(this.runner(this.filmcraftCli, ["--version"])).trim();
+    if (version !== "filmcraft-cli 0.5.0") throw new Error("Unqualified FilmCraft version; expected 0.5.0");
     const outputMp4 = outputDestination(this.outputDir, path.join(this.outputDir, `launch_reel_${format}_${randomUUID()}.mp4`));
     let preservedProject = null;
-    if (options.preserveProject) {
-      preservedProject = outputDestination(this.outputDir, path.join(this.outputDir, `launch_reel_${format}_${randomUUID()}.fcproj`));
-    }
+    let keepJob = false;
 
     const job = fs.mkdtempSync(path.join(this.outputDir, ".render-"));
     try {
@@ -84,7 +86,7 @@ export class FilmCraftRenderer {
       const beatMediaNames = [];
       for (let i = 0; i < storyboard.beats.length; i++) {
         const beat = storyboard.beats[i];
-        const media = this.mediaInput(beat.mediaAsset);
+        const media = mediaInputs[i];
         if (media) {
           const destName = `media_beat_${i}${media.ext}`;
           const destPath = path.join(job, destName);
@@ -138,6 +140,9 @@ export class FilmCraftRenderer {
         if (child && child.name && child.item != null) {
           itemMap.set(child.name, child.item);
         }
+      }
+      for (const name of [...beatMediaNames, "audio.wav"]) {
+        if (!itemMap.has(name)) throw new Error("FilmCraft import incomplete");
       }
 
       // 3. Assemble timeline: place video clips, audio, and captions
@@ -202,8 +207,8 @@ export class FilmCraftRenderer {
             params: {
               track: "C1",
               text,
-              seconds: captionSeconds + 0.2,
-              durationSeconds: Math.max(0.5, beat.durationSec - 0.4)
+              seconds: captionSeconds + Math.min(0.2, beat.durationSec / 10),
+              durationSeconds: beat.durationSec - 2 * Math.min(0.2, beat.durationSec / 10)
             }
           });
         }
@@ -212,6 +217,20 @@ export class FilmCraftRenderer {
 
       fs.writeFileSync(timelineScript, timelineCommands.map(c => JSON.stringify(c)).join("\n") + "\n", { encoding: "utf8", flag: "wx" });
       this.runner(this.filmcraftCli, ["--project", projectPath, "--save", "run", timelineScript], { cwd: job });
+
+      // Select only our video clips before fitting them; native-size stills crop.
+      const assembled = JSON.parse(fs.readFileSync(projectPath, "utf8"));
+      const clips = Object.values(assembled.project?.items || {}).flatMap(item =>
+        (item.kind?.Sequence?.video_tracks || []).flatMap(track => track.items || []));
+      if (clips.length !== storyboard.beats.length || clips.some(clip => !Number.isSafeInteger(clip.id))) {
+        throw new Error("FilmCraft video clip mapping incomplete");
+      }
+      const fitScript = path.join(job, "fit.jsonl");
+      fs.writeFileSync(fitScript, [
+        { id: "timeline.select", params: { clips: clips.map(clip => clip.id), add: false, toggle: false } },
+        { id: "clip.scaleToFrameSize", params: {} }
+      ].map(command => JSON.stringify(command)).join("\n") + "\n", { flag: "wx" });
+      this.runner(this.filmcraftCli, ["--project", projectPath, "--save", "run", fitScript], { cwd: job });
 
       // 4. Export the sequence
       const exportFile = path.join(job, "export.mp4");
@@ -224,12 +243,32 @@ export class FilmCraftRenderer {
       ], { cwd: job });
 
       requireArtifact(exportFile);
+      const probe = JSON.parse(String(this.runner("ffprobe", ["-v", "error", "-show_streams", "-show_format", "-of", "json", exportFile], { cwd: job })));
+      const video = probe.streams?.find(stream => stream.codec_type === "video");
+      const audioStream = probe.streams?.find(stream => stream.codec_type === "audio");
+      const measuredDuration = Number(probe.format?.duration);
+      if (video?.width !== width || video?.height !== height || video?.codec_name !== "h264" || !audioStream || !Number.isFinite(measuredDuration) || Math.abs(measuredDuration - duration) > 0.15) {
+        throw new Error("FilmCraft output metadata mismatch");
+      }
+      this.runner("ffmpeg", ["-nostdin", "-v", "error", "-xerror", "-i", exportFile, "-f", "null", "-"], { cwd: job });
+
+      if (options.preserveProject) {
+        // Keep the source bundle and store relative media references for relocation.
+        const project = JSON.parse(fs.readFileSync(projectPath, "utf8"));
+        for (const item of Object.values(project.project?.items || {})) {
+          const file = item.kind?.Media?.media?.File;
+          if (file) {
+            const name = path.basename(file.path);
+            if (![...beatMediaNames, "audio.wav"].includes(name)) throw new Error("Unexpected project media reference");
+            file.path = name;
+          }
+        }
+        fs.writeFileSync(projectPath, JSON.stringify(project));
+        preservedProject = projectPath;
+      }
       fs.copyFileSync(exportFile, outputMp4, fs.constants.COPYFILE_EXCL);
       const stats = requireArtifact(outputMp4);
-
-      if (preservedProject) {
-        fs.copyFileSync(projectPath, preservedProject, fs.constants.COPYFILE_EXCL);
-      }
+      keepJob = Boolean(preservedProject);
 
       // Compute hash of output
       const hash = createHash("sha256");
@@ -242,15 +281,17 @@ export class FilmCraftRenderer {
         projectPath: preservedProject,
         format,
         resolution: `${width}x${height}`,
-        durationSec: duration,
+        durationSec: measuredDuration,
         fileSizeMb: (stats.size / (1024 * 1024)).toFixed(2),
         outputSha256,
         renderer: "filmcraft",
-        version: "0.5.0",
+        version: version.replace("filmcraft-cli ", ""),
+        projectBundle: preservedProject ? job : null,
+        decoded: true,
         beatsCount: storyboard.beats.length
       };
     } finally {
-      removeJob(this.outputDir, job);
+      if (!keepJob) removeJob(this.outputDir, job);
     }
   }
 }

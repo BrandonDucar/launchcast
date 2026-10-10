@@ -33,6 +33,9 @@ function createSyntheticFixture(t, mode = "ok") {
   const runner = (cmd, args, opts) => {
     calls.push({ cmd, args, cwd: opts?.cwd });
     if (mode === "timeout") throw new Error("FilmCraft timeout");
+    if (args.includes("--version")) return mode === "wrong-version" ? "filmcraft-cli 99.0.0" : "filmcraft-cli 0.5.0";
+    if (cmd === "ffprobe") return JSON.stringify({ format: { duration: mode === "wrong-duration" ? "1" : "10" }, streams: [{ codec_type: "video", codec_name: "h264", width: 1080, height: 1920 }, { codec_type: "audio" }] });
+    if (cmd === "ffmpeg") { if (mode === "decode-failure") throw new Error("Decode failed"); return ""; }
 
     // Handling inspect command
     if (args.includes("inspect")) {
@@ -40,7 +43,7 @@ function createSyntheticFixture(t, mode = "ok") {
         project: {
           root: {
             children: [
-              { item: 10, name: "media_beat_0.png", type: "Still Image" },
+              { item: 10, name: mode === "missing-import" ? "wrong.png" : "media_beat_0.png", type: "Still Image" },
               { item: 20, name: "audio.wav", type: "Audio" }
             ]
           }
@@ -66,7 +69,10 @@ function createSyntheticFixture(t, mode = "ok") {
       const projIdx = args.indexOf("--save-as");
       if (projIdx !== -1) {
         const projPath = args[projIdx + 1];
-        fs.writeFileSync(projPath, '{"fcproj": true}');
+        fs.writeFileSync(projPath, JSON.stringify({project:{items:{
+          10:{kind:{Media:{media:{File:{path:path.join(opts.cwd, 'media_beat_0.png')}}}}},
+          30:{kind:{Sequence:{video_tracks:[{items:[{id:40}]}]}}}
+        }}}));
       }
       return '{"ok": true}';
     }
@@ -111,10 +117,13 @@ test("FilmCraftRenderer: positive control creates sequence, places clips, and ex
 
   // Verify that commands were invoked in proper sequence
   assert.equal(calls.length >= 4, true);
-  assert.equal(calls[0].args.includes("--save-as"), true); // setup
-  assert.equal(calls[1].args.includes("inspect"), true);   // inspect
-  assert.equal(calls[2].args.includes("run"), true);       // timeline
-  assert.equal(calls[3].args.includes("export"), true);    // export
+  assert.equal(calls[1].args.includes("--save-as"), true); // setup
+  assert.equal(calls[2].args.includes("inspect"), true);   // inspect
+  assert.equal(calls[3].args.includes("run"), true);       // timeline
+  assert.equal(calls[4].args.includes("run"), true);       // fit
+  assert.equal(calls[5].args.includes("export"), true);    // export
+  const fit = calls[4];
+  assert.equal(path.basename(fit.args.at(-1)), "fit.jsonl");
 });
 
 test("FilmCraftRenderer: fallback to VideoRenderer when binary missing and fallback allowed", async t => {
@@ -196,4 +205,24 @@ test("FilmCraftRenderer: preserves project file when preserveProject option is s
   assert.ok(result.projectPath);
   assert.equal(fs.existsSync(result.projectPath), true);
   assert.equal(result.projectPath.endsWith(".fcproj"), true);
+  assert.ok(fs.existsSync(path.join(result.projectBundle, 'media_beat_0.png')));
+  const project = JSON.parse(fs.readFileSync(result.projectPath));
+  assert.equal(project.project.items[10].kind.Media.media.File.path, 'media_beat_0.png');
+});
+
+for (const mode of ['wrong-version', 'missing-import', 'wrong-duration', 'decode-failure']) {
+  test(`FilmCraftRenderer fails closed on ${mode}`, async t => {
+    const {renderer,storyboard,validWav} = createSyntheticFixture(t, mode);
+    await assert.rejects(renderer.render(storyboard,validWav));
+  });
+}
+test('FilmCraftRenderer default does not silently select fallback', async t => {
+  const {renderer,storyboard,validWav} = createSyntheticFixture(t,'missing-binary');
+  await assert.rejects(renderer.render(storyboard,validWav), /not found/);
+});
+test('FilmCraftRenderer rejects missing media instead of a black beat', async t => {
+  const {renderer,storyboard,validWav,calls} = createSyntheticFixture(t);
+  storyboard.beats[0].mediaAsset = null;
+  await assert.rejects(renderer.render(storyboard,validWav), /raster/);
+  assert.equal(calls.length,0);
 });

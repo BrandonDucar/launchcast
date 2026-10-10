@@ -70,6 +70,7 @@ export function createStudioServer(options = {}) {
           if (pathname === "/api/slides/export") throw new HttpError(501, "Google Slides export is not implemented; no deck was created");
 
           const { storyboard, format = "vertical", renderer: requestedRenderer = "ffmpeg" } = body;
+          if (!["ffmpeg", "filmcraft"].includes(requestedRenderer)) throw new HttpError(400, "Invalid renderer");
           if (!["vertical", "landscape"].includes(format)) throw new HttpError(400, "Invalid video format");
           try { validateStoryboard(storyboard); } catch { throw new HttpError(400, "Invalid storyboard"); }
           let allowedMediaRoots;

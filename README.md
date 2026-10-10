@@ -10,12 +10,18 @@
 
 ## Current implementation boundary
 
+PhotoCraft image preparation, FilmCraft 0.5.0 local rendering, and a draft-only
+Postiz payload bridge are available. Start with the [Windows laptop setup and
+photo-to-reel guide](docs/FILMCRAFT_WINDOWS.md) or the
+[creative pipeline contract](docs/CREATIVE_PIPELINE.md). Editors are installed
+separately; no cloud subscription, media, or login is bundled in this repository.
+
 Local rendering is implemented. Google Drive and YouTube uploads are not: their
 adapters return `success: false` and `NOT_IMPLEMENTED`, without provider IDs or
 public links. The Workspace/AST/Slides descriptions below include planned and
 prototype behavior, not verified production integrations. Do not expose the
-Web Studio to untrusted users: HTTP authentication, request limits, static-file
-containment and origin policy still need a separate hardening pass.
+Web Studio to untrusted users: its loopback session, request limits and origin
+checks are intended for local single-user use, not public multi-tenant hosting.
 
 Scanner/render subprocesses use argument arrays, bounded inputs and execution
 deadlines. Unattended remote scans accept only public GitHub HTTPS repository

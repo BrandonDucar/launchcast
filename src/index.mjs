@@ -22,6 +22,7 @@ export {
  * End-to-end runner that executes the entire LaunchCast pipeline.
  */
 export async function runLaunchCast(targetPathOrUrl, options = {}) {
+  if (options.renderer && !["ffmpeg", "filmcraft"].includes(options.renderer)) throw new Error("Invalid renderer");
   console.log("\n[LaunchCast Engine] Starting local launch compilation...");
   const startTime = Date.now();
 

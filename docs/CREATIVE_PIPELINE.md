@@ -46,9 +46,10 @@ not cryptographic authenticity. Independently list/read the resulting draft;
 provider acceptance alone does not prove publication. Ambiguous outcomes require
 reconciliation before retry. No autonomous live publication was added.
 
-The integration is available as a local CLI/library workflow, not yet a Studio
-UI control or default `runLaunchCast` stage. FilmCraft is a separately owned
-renderer qualification lane; its installation/rendering is not claimed here.
+The image/Postiz integration is available as a local CLI/library workflow, not
+yet a Studio UI control or default `runLaunchCast` stage. The optional FilmCraft
+0.5.0 renderer is documented in [Windows setup](FILMCRAFT_WINDOWS.md), including
+the photo-to-reel command and editable project bundles. It is not bundled here.
 
 ## Tests
 
