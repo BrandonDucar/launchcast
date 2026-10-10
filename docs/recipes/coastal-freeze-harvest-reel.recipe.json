@@ -1,0 +1,51 @@
+{
+  "$schema": "launchcast.creative-recipe.v1",
+  "name": "coastal-freeze-harvest-reel",
+  "description": "Standard 15-second vertical product reel for Coastal Freeze Co. handcrafted freeze-dried goods.",
+  "format": "vertical",
+  "resolution": {
+    "width": 1080,
+    "height": 1920
+  },
+  "fps": 30,
+  "durationSec": 15,
+  "audio": {
+    "kind": "SYNTHETIC_BACKING_TRACK",
+    "narration": false,
+    "sampleRate": 44100,
+    "channels": 2
+  },
+  "beats": [
+    {
+      "index": 1,
+      "role": "kitchen-prep",
+      "durationSec": 5,
+      "headline": "Kitchen Prep",
+      "caption": "Behind the scenes at Coastal Freeze Co.",
+      "visualDescription": "Raw fruit preparation on cutting board or stainless steel kitchen surface."
+    },
+    {
+      "index": 2,
+      "role": "freeze-drying",
+      "durationSec": 5,
+      "headline": "Freeze Drying",
+      "caption": "Small-batch freeze-drying in Jupiter, Florida.",
+      "visualDescription": "Commercial freeze-dryer chamber or stainless steel freeze-drying tray."
+    },
+    {
+      "index": 3,
+      "role": "crisp-slices",
+      "durationSec": 5,
+      "headline": "Crisp Slices",
+      "caption": "Crisp, simple, and handcrafted.",
+      "visualDescription": "Finished freeze-dried fruit chips or packaged small-batch snacks."
+    }
+  ],
+  "renderSettings": {
+    "clipScale": "scaleToFrameSize",
+    "audioCrossfadeSec": 0.5,
+    "codec": "libx264",
+    "audioCodec": "aac",
+    "pixFmt": "yuv420p"
+  }
+}

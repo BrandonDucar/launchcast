@@ -232,14 +232,16 @@ export class FilmCraftRenderer {
       ].map(command => JSON.stringify(command)).join("\n") + "\n", { flag: "wx" });
       this.runner(this.filmcraftCli, ["--project", projectPath, "--save", "run", fitScript], { cwd: job });
 
-      // 4. Export the sequence
+      // 4. Export the sequence with burnCaptions enabled
       const exportFile = path.join(job, "export.mp4");
+      const exportSettings = JSON.stringify({ burnCaptions: true });
       this.runner(this.filmcraftCli, [
         "--project", projectPath,
         "export", exportFile,
         "--format", "h264",
         "--start", "0",
-        "--end", String(duration)
+        "--end", String(duration),
+        "--settings", exportSettings
       ], { cwd: job });
 
       requireArtifact(exportFile);
