@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { boundedNumber, regularInput, isWithin } from "./ProcessSafety.mjs";
+import { boundedNumber, regularInput, isWithin, validateStoryboard } from "./ProcessSafety.mjs";
 
 /**
  * CreativeRecipe defines a declarative blueprint for repeatable video reels.
@@ -20,7 +20,7 @@ export function validateRecipe(recipe) {
   let sumDuration = 0;
   for (let i = 0; i < recipe.beats.length; i++) {
     const beat = recipe.beats[i];
-    if (typeof beat.role !== "string" || !/^[a-zA-Z0-9_-]{1,40}$/.test(beat.role)) {
+    if (typeof beat.role !== "string" || !/^[a-zA-Z0-9_-]{1,32}$/.test(beat.role)) {
       throw new Error(`Invalid role for beat ${i + 1}`);
     }
     boundedNumber(beat.durationSec, `Beat ${i + 1} duration`, 0.5, 30);
@@ -38,7 +38,7 @@ export function validateRecipe(recipe) {
   return recipe;
 }
 
-export function compileRecipeStoryboard(recipe, mediaMap, allowedRoots) {
+export function compileRecipeStoryboard(recipe, mediaMap, allowedRoots = [process.cwd()]) {
   validateRecipe(recipe);
   if (!mediaMap || typeof mediaMap !== "object") throw new Error("Media mapping required");
 
@@ -51,8 +51,10 @@ export function compileRecipeStoryboard(recipe, mediaMap, allowedRoots) {
     }
 
     const resolved = regularInput(assetPath, allowedRoots, 25 * 1024 * 1024);
+    // Bounded beatId to 40 characters maximum, adhering strictly to validateStoryboard
+    const beatId = `b${i + 1}_${rBeat.role}`.slice(0, 40);
     beats.push({
-      beatId: `beat_${i + 1}_${rBeat.role}`,
+      beatId,
       headline: rBeat.headline,
       voiceoverScript: rBeat.caption,
       durationSec: rBeat.durationSec,
@@ -60,10 +62,14 @@ export function compileRecipeStoryboard(recipe, mediaMap, allowedRoots) {
     });
   }
 
-  return {
+  const storyboard = {
     totalDurationSec: recipe.durationSec,
     beats
   };
+
+  // Downstream validation check against ProcessSafety
+  validateStoryboard(storyboard);
+  return storyboard;
 }
 
 export function previewRecipe(recipe, mediaMap = {}) {
