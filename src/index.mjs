@@ -3,6 +3,7 @@ import { WorkspaceConnector } from "./core/WorkspaceConnector.mjs";
 import { ScriptCompiler } from "./core/ScriptCompiler.mjs";
 import { AudioSynthesizer } from "./core/AudioSynthesizer.mjs";
 import { VideoRenderer } from "./core/VideoRenderer.mjs";
+import { FilmCraftRenderer } from "./core/FilmCraftRenderer.mjs";
 import { DistributionEngine, distributeVideo } from "./core/DistributionEngine.mjs";
 import { FarcasterBroadcaster } from "./core/FarcasterBroadcaster.mjs";
 
@@ -12,6 +13,7 @@ export {
   ScriptCompiler,
   AudioSynthesizer,
   VideoRenderer,
+  FilmCraftRenderer,
   DistributionEngine,
   FarcasterBroadcaster
 };
@@ -50,11 +52,13 @@ export async function runLaunchCast(targetPathOrUrl, options = {}) {
   const audio = await synthesizer.synthesize(storyboard);
   console.log(`✅ [4/5] Audio Track Ready: ${audio.audioPath}`);
 
-  // 5. Render Master Broadcast Video (FFmpeg)
-  const renderer = new VideoRenderer({ ...options, allowedMediaRoots: [scanner.localPath] });
+  // 5. Render Master Broadcast Video (FFmpeg or FilmCraft)
+  const rendererType = options.renderer || "ffmpeg";
+  const RendererClass = rendererType === "filmcraft" ? FilmCraftRenderer : VideoRenderer;
+  const renderer = new RendererClass({ ...options, allowedMediaRoots: [scanner.localPath] });
   const format = options.format || "vertical"; // or "landscape"
-  const videoResult = await renderer.render(storyboard, audio.audioPath, format);
-  console.log(`✅ [5/5] Master Video Rendered: ${videoResult.outputMp4} (${videoResult.fileSizeMb} MB)`);
+  const videoResult = await renderer.render(storyboard, audio.audioPath, format, options);
+  console.log(`✅ [5/5] Master Video Rendered (${videoResult.renderer}): ${videoResult.outputMp4} (${videoResult.fileSizeMb} MB)`);
 
   // 6. Distribution (Google Drive, YouTube, Farcaster, GitHub README PR)
   const distributionResult = await distributeVideo(videoResult.outputMp4, storyboard, {
